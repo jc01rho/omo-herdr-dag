@@ -1,4 +1,4 @@
-name: Publish to npm
+name: Release to GitHub and npm
 
 on:
   push:
@@ -13,15 +13,10 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  verify:
-    uses: ./.github/workflows/test.yml
-
-  publish:
-    needs: verify
+  prepare:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
+    outputs:
+      tag: ${{ steps.release.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -29,7 +24,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-          registry-url: https://registry.npmjs.org
       - name: Validate release version
         id: release
         run: |
@@ -49,14 +43,60 @@ jobs:
           }
           appendFileSync(process.env.GITHUB_OUTPUT, `tag=${pkg.version.includes('-') ? 'next' : 'latest'}\n`);
           NODE
+
+  verify:
+    needs: prepare
+    uses: ./.github/workflows/test.yml
+
+  github-release:
+    needs: [prepare, verify]
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: npm-package-node-24
+          path: .artifacts
+      - name: Create GitHub release with verified package
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          NPM_DIST_TAG: ${{ needs.prepare.outputs.tag }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            echo "GitHub release already exists: $GITHUB_REF_NAME"
+            exit 0
+          fi
+          args=(--verify-tag --generate-notes --title "$GITHUB_REF_NAME")
+          if [ "$NPM_DIST_TAG" = next ]; then
+            args+=(--prerelease)
+          fi
+          gh release create "$GITHUB_REF_NAME" .artifacts/*.tgz "${args[@]}"
+
+  publish:
+    needs: [prepare, verify]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          registry-url: https://registry.npmjs.org
       - uses: actions/download-artifact@v4
         with:
           name: npm-package-node-24
           path: .artifacts
       - name: Validate package contents without publishing
-        run: npm publish .artifacts/*.tgz --dry-run --ignore-scripts --access public --tag '${{ steps.release.outputs.tag }}'
+        run: npm publish .artifacts/*.tgz --dry-run --ignore-scripts --access public --tag '${{ needs.prepare.outputs.tag }}'
       - name: Publish verified package
         if: github.event_name == 'push'
-        run: npm publish .artifacts/*.tgz --ignore-scripts --access public --provenance --tag '${{ steps.release.outputs.tag }}'
+        run: npm publish .artifacts/*.tgz --ignore-scripts --access public --provenance --tag '${{ needs.prepare.outputs.tag }}'
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

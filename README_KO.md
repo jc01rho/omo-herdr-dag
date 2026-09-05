@@ -6,22 +6,11 @@
 
 `omo-herdr-dag`는 workflow DAG가 생성되면 [Herdr](https://herdr.dev/)에 전용 TUI를 여는 [OmO](https://github.com/code-yeongyu/oh-my-openagent) 확장입니다. 대화 옆에서 노드 상태와 의존 관계를 확인할 수 있으며, 포커스는 기존 pane에 유지합니다.
 
-```text
-                  [분석 ✓]
-                      │
-          ┌───────────┴───────────┐
-          ▼                       ▼
-       [서버 ●]                [화면 ●]
-          │                       │
-          └───────────┬───────────┘
-                      ▼
-                  [통합 ○]
-                      │
-                      ▼
-                  [검증 ○]
-```
+![왼쪽 OmO에서 저녁 메뉴 조사 workflow를 실행하고, 오른쪽 Herdr DAG pane에서 실행 중인 조사 노드 세 개와 대기 중인 검증 노드를 확인하는 화면.](https://raw.githubusercontent.com/jc01rho/omo-herdr-dag/main/docs/screenshots/workflow-in-progress.png)
 
-위 그림은 배치 예시입니다. 인터페이스의 기본 언어는 영어이며 `--lang ko`로 한국어를 선택할 수 있습니다. 노드 이름은 언어 설정과 관계없이 workflow에 지정한 값을 그대로 표시합니다.
+*실행 중인 workflow 예시입니다. `home`, `order`, `light`가 저녁 메뉴 후보를 병렬로 조사하고, 세 작업에 의존하는 `verify`는 대기합니다. 왼쪽에서 대화를 이어가면서 오른쪽 pane에서 각 작업의 상태와 전체 의존 관계를 확인할 수 있습니다.*
+
+스크린샷은 이전 버전의 한국어 화면입니다. 새 설치의 기본 언어는 **영어**이며 `--lang ko`로 한국어를 선택할 수 있습니다. 노드 이름은 언어 설정과 관계없이 workflow에 지정한 값을 그대로 표시합니다. 현재 버전은 연결 종료 시 닫아도 된다는 안내도 추가로 표시합니다.
 
 ## 주요 기능
 
@@ -104,6 +93,10 @@ npm CLI에서도 같은 `--agent-dir` 옵션을 사용할 수 있습니다.
 
 ## 조작 방법
 
+OmO에서 `/dag-pane`을 입력하면 workflow 시작 전에 viewer를 미리 열거나 직접 닫은 pane을 다시 열 수 있습니다. Workflow snapshot이 도착할 때까지 대기하고, 이후 상태 변경에 따라 그래프를 갱신합니다.
+
+![OmO에서 /dag-pane을 입력했을 때 현재 세션의 DAG pane을 열거나 다시 여는 명령 설명이 표시되는 화면.](https://raw.githubusercontent.com/jc01rho/omo-herdr-dag/main/docs/screenshots/dag-pane-command.png)
+
 | 위치 | 명령 또는 키 | 동작 |
 | --- | --- | --- |
 | OmO | `/dag-pane` | 현재 세션의 viewer를 열거나 다시 엽니다. |
@@ -181,7 +174,7 @@ GitHub Actions는 Linux의 Node 24와 26에서 이 검증을 실행하고 npm `.
 
 GitHub에는 소스와 CI 아티팩트를 보관합니다. npm 게시 후에는 레지스트리에서 버전별 CLI·확장 패키지를 받습니다. 설치 프로그램이 런타임 파일을 OmO 에이전트 디렉터리에 복사하고 로컬에서 실행하므로 별도 애플리케이션 서버는 필요하지 않습니다. CI에서 받은 패키지는 `npm install -g ./omo-herdr-dag-1.0.0.tgz`로 설치한 뒤 `omo-herdr-dag install`을 실행할 수 있습니다.
 
-`v1.0.0` 같은 버전 태그를 push하면 **Publish to npm** workflow가 Node 24·26 검증과 태그·패키지 버전 일치 확인 후 검증한 패키지를 자동으로 npm에 게시합니다. 먼저 npm 인증을 설정해야 합니다. 일반 브랜치 push는 CI만 실행하고, 게시 workflow의 수동 실행은 실제 게시 없이 dry run으로 검증합니다. 사전 릴리스 버전은 npm의 `next` 태그로 게시합니다. 인증 설정과 릴리스 절차는 [RELEASING.md](RELEASING.md)에 정리했습니다.
+`v1.0.0` 같은 버전 태그를 push하면 **Release to GitHub and npm** workflow가 Node 24·26 검증과 태그·패키지 버전 일치 확인 후 검증한 패키지를 자동으로 npm에 게시합니다. 동시에 [GitHub Releases](https://github.com/jc01rho/omo-herdr-dag/releases)에도 자동 생성한 릴리스 노트와 `.tgz` 다운로드를 등록합니다. npm 게시에는 사전 인증 설정이 필요하며, GitHub 릴리스는 기본 GitHub 토큰으로 독립적으로 생성됩니다. 일반 브랜치 push는 CI만 실행하고, 게시 workflow의 수동 실행은 실제 게시 없이 dry run으로 검증합니다. 사전 릴리스 버전은 npm의 `next` 태그로 게시합니다. 인증 설정과 릴리스 절차는 [RELEASING.md](RELEASING.md)에 정리했습니다.
 
 기여, 호환성 제보, 터미널 렌더링 개선을 환영합니다. 변경을 제안하기 전에 [CONTRIBUTING.md](CONTRIBUTING.md)를 확인해 주세요.
 

@@ -20,11 +20,13 @@ The **Test and build** workflow runs on pushes, pull requests, and manual dispat
 4. `npm run test:package`
 5. `npm pack`, followed by upload of the `.tgz` artifact.
 
-Actions artifacts are downloadable from the workflow run. This verification workflow requires no npm credentials and is also reused by **Publish to npm** (`.github/workflows/publish.yml`).
+Actions artifacts are downloadable from the workflow run. This verification workflow requires no npm credentials and is also reused by **Release to GitHub and npm** (`.github/workflows/publish.yml`).
 
 The publish workflow runs on pushed `v*` tags. It waits for both Node versions to pass, checks that the tag, package version, and lockfile versions match, and publishes the Node 24 tarball from that same run with provenance. Stable versions use `latest`; versions containing a prerelease suffix use `next`. Concurrent releases of the same ref are serialized. An existing npm version cannot be overwritten.
 
-Manual dispatch runs verification and `npm publish --dry-run` only, even when a tag is selected. It never publishes and needs no npm authentication.
+After verification, separate jobs create a [GitHub Release](https://github.com/jc01rho/omo-herdr-dag/releases) and publish to npm. The GitHub release includes generated notes and the same Node 24 `.tgz` as a downloadable asset; prerelease versions are marked as prereleases. It uses the built-in `GITHUB_TOKEN` with `contents: write` and can succeed even if npm authentication fails. Reruns preserve an existing GitHub release. A GitHub release alone does not confirm npm availability.
+
+Manual dispatch runs verification and `npm publish --dry-run` only, even when a tag is selected. It never publishes to npm or creates a GitHub release and needs no npm authentication.
 
 ## Prepare a version
 
@@ -76,7 +78,7 @@ For subsequent versions, use `npm version patch` (or `minor` / `major`) on a cle
 
 The workflow publishes the already built and verified tarball with lifecycle scripts disabled; the reusable verification job has already run the tests, build, and package smoke test. Local `npm publish --access public` remains possible after `npm login`; its `prepublishOnly` hook performs those checks itself.
 
-Watch the **Publish to npm** run in [Actions](https://github.com/jc01rho/omo-herdr-dag/actions/workflows/publish.yml). If authentication fails before publication, configure it and rerun the failed job. If a version was already published, bump the version for new contents rather than moving the old release tag. A successful dry run verifies packaging, not npm write permission.
+Watch the **Release to GitHub and npm** run in [Actions](https://github.com/jc01rho/omo-herdr-dag/actions/workflows/publish.yml). If authentication fails before publication, configure it and rerun the failed job. If a version was already published, bump the version for new contents rather than moving the old release tag. A successful dry run verifies packaging, not npm write permission.
 
 After successful publication, users can run:
 

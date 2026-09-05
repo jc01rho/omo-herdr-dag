@@ -6,22 +6,11 @@ English | [한국어](README_KO.md)
 
 `omo-herdr-dag` is an [OmO](https://github.com/code-yeongyu/oh-my-openagent) extension that opens a dedicated TUI in [Herdr](https://herdr.dev/) when a workflow DAG appears. Follow dependencies and node states beside your conversation, with focus kept in the original pane.
 
-```text
-                 [Analyze ✓]
-                      │
-          ┌───────────┴───────────┐
-          ▼                       ▼
-     [Server ●]                [UI ●]
-          │                       │
-          └───────────┬───────────┘
-                      ▼
-                [Integrate ○]
-                      │
-                      ▼
-                 [Verify ○]
-```
+![OmO running a dinner research workflow on the left, with three running research nodes and a waiting verification node in the Herdr DAG pane on the right.](https://raw.githubusercontent.com/jc01rho/omo-herdr-dag/main/docs/screenshots/workflow-in-progress.png)
 
-Illustrative layout. The interface defaults to English; Korean is available with `--lang ko`. Node labels come from your workflow and are displayed unchanged.
+*A workflow in progress: `home`, `order`, and `light` research dinner options in parallel; `verify` depends on all three. The right pane shows their states and lists every dependency while the conversation remains visible on the left.*
+
+The screenshots show an earlier Korean interface. New installations default to **English**; select Korean with `--lang ko`. Node labels come from your workflow and are displayed unchanged. The current viewer also adds an explicit close hint after disconnection.
 
 ## Features
 
@@ -104,6 +93,10 @@ The npm CLI accepts the same `--agent-dir` option.
 
 ## Controls
 
+Type `/dag-pane` in OmO to open the viewer before a workflow starts, or to reopen a pane you closed. It waits for a workflow snapshot, then displays the graph as updates arrive.
+
+![The /dag-pane command in OmO, with completion describing how to open or reopen the current session's DAG pane.](https://raw.githubusercontent.com/jc01rho/omo-herdr-dag/main/docs/screenshots/dag-pane-command.png)
+
 | Where | Command or key | Action |
 | --- | --- | --- |
 | OmO | `/dag-pane` | Open or reopen the current session's viewer. |
@@ -181,7 +174,7 @@ GitHub Actions runs these checks on Node 24 and 26 on Linux, then uploads an npm
 
 GitHub hosts the source and CI artifacts. The npm registry will distribute the versioned CLI and extension package after publication. The installer copies the runtime files into your OmO agent directory, where they run locally; this project needs no hosted application server. A downloaded CI tarball can be installed with `npm install -g ./omo-herdr-dag-1.0.0.tgz`, followed by `omo-herdr-dag install`.
 
-Pushing a version tag such as `v1.0.0` runs the **Publish to npm** workflow: it tests Node 24 and 26, checks that the tag matches the package version, then publishes the verified package. npm authentication must be configured first. Ordinary branch pushes run CI; manually running the publish workflow performs a dry run. Prerelease versions use npm's `next` tag. Setup and release steps are in [RELEASING.md](RELEASING.md).
+Pushing a version tag such as `v1.0.0` runs the **Release to GitHub and npm** workflow: it tests Node 24 and 26, checks that the tag matches the package version, then publishes the verified package. It also creates a [GitHub Release](https://github.com/jc01rho/omo-herdr-dag/releases) with generated release notes and the `.tgz` download. npm authentication must be configured first for npm publication; GitHub Releases use the built-in GitHub token and can succeed independently. Ordinary branch pushes run CI; manually running the publish workflow performs a dry run. Prerelease versions use npm's `next` tag. Setup and release steps are in [RELEASING.md](RELEASING.md).
 
 Contributions, compatibility reports, and improvements to terminal rendering are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) before submitting a change.
 

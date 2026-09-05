@@ -32,4 +32,5 @@ jobs:
         with:
           name: npm-package-node-${{ matrix.node }}
           path: .artifacts/*.tgz
+          include-hidden-files: true
           if-no-files-found: error

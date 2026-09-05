@@ -78,7 +78,6 @@ jobs:
   publish:
     needs: [prepare, verify]
     runs-on: ubuntu-latest
-    environment: NPM_TOKEN
     permissions:
       contents: read
       id-token: write

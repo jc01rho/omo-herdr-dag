@@ -49,9 +49,9 @@ The package smoke test checks an actual tarball in a temporary project, using of
 
 ## Configure npm authentication once
 
-An npm account with publishing rights to `omo-herdr-dag` is required. GitHub's `GITHUB_TOKEN` cannot publish to the public npm registry. The publish job uses the GitHub environment named **`NPM_TOKEN`**, which contains the secret also named **`NPM_TOKEN`**. The environment name and secret name are separate settings.
+An npm account with publishing rights to `omo-herdr-dag` is required. GitHub's `GITHUB_TOKEN` cannot publish to the public npm registry. The publish job does not use a GitHub environment, so it does not create GitHub Deployments entries. Prefer trusted publishing; token-based authentication uses a repository Actions secret named **`NPM_TOKEN`**.
 
-For token-based publication through Actions, create an npm granular access token with package write access that permits creating this package and with **Bypass 2FA** enabled for unattended publishing. Add it as the environment secret **`NPM_TOKEN`** under the **`NPM_TOKEN`** environment in [GitHub environment settings](https://github.com/jc01rho/omo-herdr-dag/settings/environments). A repository Actions secret with that name also works if the environment has no overriding secret. Enter it directly in GitHub; never commit it or paste it into an issue. The workflow exposes this secret only to the publish step. Account policies and token expiration still apply. Environment protection rules, if added, also apply to manual dry runs.
+For token-based publication through Actions, create an npm granular access token with package write access that permits creating this package and with **Bypass 2FA** enabled for unattended publishing. Add it as the repository Actions secret **`NPM_TOKEN`** in [GitHub Actions secret settings](https://github.com/jc01rho/omo-herdr-dag/settings/secrets/actions), not as a GitHub environment. Enter it directly in GitHub; never commit it or paste it into an issue. The workflow exposes this secret only to the publish step. Account policies and token expiration still apply.
 
 After the package exists, prefer npm trusted publishing to remove the long-lived token. In the npm package settings, add a GitHub Actions trusted publisher with:
 
@@ -60,10 +60,10 @@ After the package exists, prefer npm trusted publishing to remove the long-lived
 | Organization or user | `jc01rho` |
 | Repository | `omo-herdr-dag` |
 | Workflow filename | `publish.yml` |
-| Environment | `NPM_TOKEN` |
+| Environment | Leave blank; the workflow does not use a GitHub environment. |
 | Allowed actions | Enable **`npm publish`** for direct automatic publication. `npm stage publish` alone is insufficient. |
 
-Then remove the `NPM_TOKEN` environment secret and any repository secret with that name. The workflow already grants `id-token: write`, uses a GitHub-hosted Ubuntu runner, and uses Node 24 with a current npm version supporting trusted publishing (npm 11.5.1 or newer). npm can authenticate through OIDC without a stored token. Trusted publishing must be configured on npm; granting the GitHub permission alone is insufficient. See [npm trusted publishing](https://docs.npmjs.com/trusted-publishers/).
+Then remove any `NPM_TOKEN` repository secret. The workflow already grants `id-token: write`, uses a GitHub-hosted Ubuntu runner, and uses Node 24 with a current npm version supporting trusted publishing (npm 11.5.1 or newer). npm can authenticate through OIDC without a stored token. Trusted publishing must be configured on npm; granting the GitHub permission alone is insufficient. See [npm trusted publishing](https://docs.npmjs.com/trusted-publishers/).
 
 ## Publish a version
 
@@ -83,7 +83,7 @@ Watch the **Release to GitHub and npm** run in [Actions](https://github.com/jc01
 
 ### If npm requests additional authentication (`EOTP`)
 
-An `EOTP` response means npm requires an interactive authentication step; storing a token in GitHub does not guarantee unattended publishing permission. Check the token's package write scope and **Bypass 2FA** setting, and the account/package publishing policy. Replace the environment secret if necessary and rerun the failed publish job. Never store a one-time code as a permanent Actions secret.
+An `EOTP` response means npm requires an interactive authentication step; storing a token in GitHub does not guarantee unattended publishing permission. Check the token's package write scope and **Bypass 2FA** setting, and the account/package publishing policy. Replace the repository secret if necessary and rerun the failed publish job. Never store a one-time code as a permanent Actions secret.
 
 If the first package publication requires interactive authentication, publish the verified GitHub Release asset from a terminal after `npm login`, completing npm's browser/2FA prompt:
 

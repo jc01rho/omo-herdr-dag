@@ -49,9 +49,9 @@ The package smoke test checks an actual tarball in a temporary project, using of
 
 ## Configure npm authentication once
 
-An npm account with publishing rights to `omo-herdr-dag` is required. GitHub's `GITHUB_TOKEN` cannot publish to the public npm registry. At setup time, this repository has no `NPM_TOKEN` secret and the initial npm package does not yet exist.
+An npm account with publishing rights to `omo-herdr-dag` is required. GitHub's `GITHUB_TOKEN` cannot publish to the public npm registry. The publish job uses the GitHub environment named **`NPM_TOKEN`**, which contains the secret also named **`NPM_TOKEN`**. The environment name and secret name are separate settings.
 
-For the first publication through Actions, create an npm granular access token with package write access that permits creating this package and with **Bypass 2FA** enabled for unattended publishing. Add it as the repository Actions secret **`NPM_TOKEN`** in [GitHub settings](https://github.com/jc01rho/omo-herdr-dag/settings/secrets/actions). Enter it directly there; never commit it or paste it into an issue. The workflow exposes this secret only to the publish step. Account policies and token expiration still apply.
+For token-based publication through Actions, create an npm granular access token with package write access that permits creating this package and with **Bypass 2FA** enabled for unattended publishing. Add it as the environment secret **`NPM_TOKEN`** under the **`NPM_TOKEN`** environment in [GitHub environment settings](https://github.com/jc01rho/omo-herdr-dag/settings/environments). A repository Actions secret with that name also works if the environment has no overriding secret. Enter it directly in GitHub; never commit it or paste it into an issue. The workflow exposes this secret only to the publish step. Account policies and token expiration still apply. Environment protection rules, if added, also apply to manual dry runs.
 
 After the package exists, prefer npm trusted publishing to remove the long-lived token. In the npm package settings, add a GitHub Actions trusted publisher with:
 
@@ -60,9 +60,9 @@ After the package exists, prefer npm trusted publishing to remove the long-lived
 | Organization or user | `jc01rho` |
 | Repository | `omo-herdr-dag` |
 | Workflow filename | `publish.yml` |
-| Environment | Leave blank; this workflow does not use a GitHub environment. |
+| Environment | `NPM_TOKEN` |
 
-Then remove the `NPM_TOKEN` repository secret. The workflow already grants `id-token: write`, uses a GitHub-hosted Ubuntu runner, and uses Node 24 with a current npm version supporting trusted publishing (npm 11.5.1 or newer). npm can authenticate through OIDC without a stored token. Trusted publishing must be configured on npm; granting the GitHub permission alone is insufficient. See [npm trusted publishing](https://docs.npmjs.com/trusted-publishers/).
+Then remove the `NPM_TOKEN` environment secret and any repository secret with that name. The workflow already grants `id-token: write`, uses a GitHub-hosted Ubuntu runner, and uses Node 24 with a current npm version supporting trusted publishing (npm 11.5.1 or newer). npm can authenticate through OIDC without a stored token. Trusted publishing must be configured on npm; granting the GitHub permission alone is insufficient. See [npm trusted publishing](https://docs.npmjs.com/trusted-publishers/).
 
 ## Publish a version
 

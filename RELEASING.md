@@ -61,6 +61,7 @@ After the package exists, prefer npm trusted publishing to remove the long-lived
 | Repository | `omo-herdr-dag` |
 | Workflow filename | `publish.yml` |
 | Environment | `NPM_TOKEN` |
+| Allowed actions | Enable **`npm publish`** for direct automatic publication. `npm stage publish` alone is insufficient. |
 
 Then remove the `NPM_TOKEN` environment secret and any repository secret with that name. The workflow already grants `id-token: write`, uses a GitHub-hosted Ubuntu runner, and uses Node 24 with a current npm version supporting trusted publishing (npm 11.5.1 or newer). npm can authenticate through OIDC without a stored token. Trusted publishing must be configured on npm; granting the GitHub permission alone is insufficient. See [npm trusted publishing](https://docs.npmjs.com/trusted-publishers/).
 
@@ -79,6 +80,20 @@ For subsequent versions, use `npm version patch` (or `minor` / `major`) on a cle
 The workflow publishes the already built and verified tarball with lifecycle scripts disabled; the reusable verification job has already run the tests, build, and package smoke test. Local `npm publish --access public` remains possible after `npm login`; its `prepublishOnly` hook performs those checks itself.
 
 Watch the **Release to GitHub and npm** run in [Actions](https://github.com/jc01rho/omo-herdr-dag/actions/workflows/publish.yml). If authentication fails before publication, configure it and rerun the failed job. If a version was already published, bump the version for new contents rather than moving the old release tag. A successful dry run verifies packaging, not npm write permission.
+
+### If npm requests additional authentication (`EOTP`)
+
+An `EOTP` response means npm requires an interactive authentication step; storing a token in GitHub does not guarantee unattended publishing permission. Check the token's package write scope and **Bypass 2FA** setting, and the account/package publishing policy. Replace the environment secret if necessary and rerun the failed publish job. Never store a one-time code as a permanent Actions secret.
+
+If the first package publication requires interactive authentication, publish the verified GitHub Release asset from a terminal after `npm login`, completing npm's browser/2FA prompt:
+
+```bash
+gh release download v1.0.0 --repo jc01rho/omo-herdr-dag --pattern 'omo-herdr-dag-1.0.0.tgz' --dir .artifacts
+npm login
+npm publish .artifacts/omo-herdr-dag-1.0.0.tgz --ignore-scripts --access public
+```
+
+Then configure trusted publishing for subsequent releases using the fields above. npm configurations created after September 3, 2026 default to allowing staged publication, so explicitly enable `npm publish` for this workflow. See [npm trusted publishers](https://docs.npmjs.com/trusted-publishers/) and [the token-policy notice](https://gh.io/npm-gat-bypass2fa-deprecation) for current requirements.
 
 After successful publication, users can run:
 

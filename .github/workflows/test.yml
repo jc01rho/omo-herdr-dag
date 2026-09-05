@@ -1,0 +1,35 @@
+name: Test and build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['24', '26']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npm test
+      - run: npm run build
+      - run: npm run test:package
+      - name: Pack release artifact
+        run: |
+          mkdir -p .artifacts
+          npm pack --ignore-scripts --pack-destination .artifacts
+      - uses: actions/upload-artifact@v4
+        with:
+          name: npm-package-node-${{ matrix.node }}
+          path: .artifacts/*.tgz
+          if-no-files-found: error

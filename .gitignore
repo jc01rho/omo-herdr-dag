@@ -1,0 +1,17 @@
+node_modules/
+coverage/
+dist/
+.dist-stage-*/
+.artifacts/
+.DS_Store
+.env
+.env.*
+!.env.example
+*.log
+*.tgz
+*.tar.gz
+.omo/
+.runtime/
+*.pane.json
+*.backup-*/
+*.stage-*/

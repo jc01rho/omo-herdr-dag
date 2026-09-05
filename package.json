@@ -1,0 +1,24 @@
+{
+  "name": "omo-herdr-dag",
+  "version": "1.0.0",
+  "description": "Live OmO workflow DAGs in a Herdr side pane.",
+  "license": "MIT",
+  "repository": { "type": "git", "url": "git+https://github.com/jc01rho/omo-herdr-dag.git" },
+  "homepage": "https://github.com/jc01rho/omo-herdr-dag#readme",
+  "bugs": { "url": "https://github.com/jc01rho/omo-herdr-dag/issues" },
+  "keywords": ["omo", "herdr", "dag", "tui", "workflow"],
+  "type": "module",
+  "bin": { "omo-herdr-dag": "bin/omo-herdr-dag.mjs" },
+  "exports": { ".": "./dist/extension.mjs" },
+  "files": ["bin/", "dist/", "LICENSE", "README.md", "README_KO.md", "CONTRIBUTING.md", "VERIFICATION.md", "RELEASING.md"],
+  "publishConfig": { "access": "public", "registry": "https://registry.npmjs.org/" },
+  "scripts": {
+    "test": "node --test --test-isolation=none test/*.test.mjs",
+    "build": "node scripts/build.mjs",
+    "test:package": "node scripts/verify-package.mjs",
+    "check": "npm test && npm run build && npm run test:package",
+    "prepack": "npm run build",
+    "prepublishOnly": "npm test && npm run build && npm run test:package"
+  },
+  "engines": { "node": ">=24" }
+}

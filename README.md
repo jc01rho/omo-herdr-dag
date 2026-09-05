@@ -181,7 +181,7 @@ GitHub Actions runs these checks on Node 24 and 26 on Linux, then uploads an npm
 
 GitHub hosts the source and CI artifacts. The npm registry will distribute the versioned CLI and extension package after publication. The installer copies the runtime files into your OmO agent directory, where they run locally; this project needs no hosted application server. A downloaded CI tarball can be installed with `npm install -g ./omo-herdr-dag-1.0.0.tgz`, followed by `omo-herdr-dag install`.
 
-Creating a Git tag or pushing this repository does not publish to npm. Maintainer publishing steps are in [RELEASING.md](RELEASING.md).
+Pushing a version tag such as `v1.0.0` runs the **Publish to npm** workflow: it tests Node 24 and 26, checks that the tag matches the package version, then publishes the verified package. npm authentication must be configured first. Ordinary branch pushes run CI; manually running the publish workflow performs a dry run. Prerelease versions use npm's `next` tag. Setup and release steps are in [RELEASING.md](RELEASING.md).
 
 Contributions, compatibility reports, and improvements to terminal rendering are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) before submitting a change.
 

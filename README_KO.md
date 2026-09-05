@@ -181,7 +181,7 @@ GitHub Actions는 Linux의 Node 24와 26에서 이 검증을 실행하고 npm `.
 
 GitHub에는 소스와 CI 아티팩트를 보관합니다. npm 게시 후에는 레지스트리에서 버전별 CLI·확장 패키지를 받습니다. 설치 프로그램이 런타임 파일을 OmO 에이전트 디렉터리에 복사하고 로컬에서 실행하므로 별도 애플리케이션 서버는 필요하지 않습니다. CI에서 받은 패키지는 `npm install -g ./omo-herdr-dag-1.0.0.tgz`로 설치한 뒤 `omo-herdr-dag install`을 실행할 수 있습니다.
 
-Git 태그를 만들거나 저장소에 push하는 것만으로 npm에 게시되지는 않습니다. 유지관리자의 게시 절차는 [RELEASING.md](RELEASING.md)에 정리했습니다.
+`v1.0.0` 같은 버전 태그를 push하면 **Publish to npm** workflow가 Node 24·26 검증과 태그·패키지 버전 일치 확인 후 검증한 패키지를 자동으로 npm에 게시합니다. 먼저 npm 인증을 설정해야 합니다. 일반 브랜치 push는 CI만 실행하고, 게시 workflow의 수동 실행은 실제 게시 없이 dry run으로 검증합니다. 사전 릴리스 버전은 npm의 `next` 태그로 게시합니다. 인증 설정과 릴리스 절차는 [RELEASING.md](RELEASING.md)에 정리했습니다.
 
 기여, 호환성 제보, 터미널 렌더링 개선을 환영합니다. 변경을 제안하기 전에 [CONTRIBUTING.md](CONTRIBUTING.md)를 확인해 주세요.
 

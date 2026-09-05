@@ -1,0 +1,62 @@
+name: Publish to npm
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: npm-publish-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    uses: ./.github/workflows/test.yml
+
+  publish:
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          registry-url: https://registry.npmjs.org
+      - name: Validate release version
+        id: release
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import { readFileSync, appendFileSync } from 'node:fs';
+          const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
+          const lock = JSON.parse(readFileSync('package-lock.json', 'utf8'));
+          assert.equal(pkg.name, 'omo-herdr-dag');
+          assert.equal(lock.version, pkg.version, 'Lockfile version must match');
+          assert.equal(lock.packages[''].version, pkg.version, 'Lockfile package version must match');
+          assert.match(pkg.version, /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/);
+          if (process.env.GITHUB_EVENT_NAME === 'push') {
+            assert.equal(process.env.GITHUB_REF, `refs/tags/v${pkg.version}`, 'Tag must match package version');
+          } else {
+            assert.equal(process.env.GITHUB_EVENT_NAME, 'workflow_dispatch');
+          }
+          appendFileSync(process.env.GITHUB_OUTPUT, `tag=${pkg.version.includes('-') ? 'next' : 'latest'}\n`);
+          NODE
+      - uses: actions/download-artifact@v4
+        with:
+          name: npm-package-node-24
+          path: .artifacts
+      - name: Validate package contents without publishing
+        run: npm publish .artifacts/*.tgz --dry-run --ignore-scripts --access public --tag '${{ steps.release.outputs.tag }}'
+      - name: Publish verified package
+        if: github.event_name == 'push'
+        run: npm publish .artifacts/*.tgz --ignore-scripts --access public --provenance --tag '${{ steps.release.outputs.tag }}'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

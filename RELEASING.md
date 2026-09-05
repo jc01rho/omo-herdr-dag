@@ -20,7 +20,11 @@ The **Test and build** workflow runs on pushes, pull requests, and manual dispat
 4. `npm run test:package`
 5. `npm pack`, followed by upload of the `.tgz` artifact.
 
-Actions artifacts are downloadable from the workflow run. The workflow does not publish to npm and requires no npm credentials. It starts running after the project is pushed to a GitHub repository with Actions enabled.
+Actions artifacts are downloadable from the workflow run. This verification workflow requires no npm credentials and is also reused by **Publish to npm** (`.github/workflows/publish.yml`).
+
+The publish workflow runs on pushed `v*` tags. It waits for both Node versions to pass, checks that the tag, package version, and lockfile versions match, and publishes the Node 24 tarball from that same run with provenance. Stable versions use `latest`; versions containing a prerelease suffix use `next`. Concurrent releases of the same ref are serialized. An existing npm version cannot be overwritten.
+
+Manual dispatch runs verification and `npm publish --dry-run` only, even when a tag is selected. It never publishes and needs no npm authentication.
 
 ## Prepare a version
 
@@ -41,18 +45,38 @@ npm pack --pack-destination .artifacts
 
 The package smoke test checks an actual tarball in a temporary project, using offline npm installation. It checks the executable, English default, Korean selection, dry-run behavior, installed extension imports, MIT notice, and update preservation.
 
-## Publish explicitly
+## Configure npm authentication once
 
-An npm account with publishing rights to the chosen package name is required. Log in using npm's own authentication flow and comply with the account's authentication requirements. Do not store credentials in this repository.
+An npm account with publishing rights to `omo-herdr-dag` is required. GitHub's `GITHUB_TOKEN` cannot publish to the public npm registry. At setup time, this repository has no `NPM_TOKEN` secret and the initial npm package does not yet exist.
 
-From the reviewed source checkout:
+For the first publication through Actions, create an npm granular access token with package write access that permits creating this package and with **Bypass 2FA** enabled for unattended publishing. Add it as the repository Actions secret **`NPM_TOKEN`** in [GitHub settings](https://github.com/jc01rho/omo-herdr-dag/settings/secrets/actions). Enter it directly there; never commit it or paste it into an issue. The workflow exposes this secret only to the publish step. Account policies and token expiration still apply.
+
+After the package exists, prefer npm trusted publishing to remove the long-lived token. In the npm package settings, add a GitHub Actions trusted publisher with:
+
+| Field | Value |
+| --- | --- |
+| Organization or user | `jc01rho` |
+| Repository | `omo-herdr-dag` |
+| Workflow filename | `publish.yml` |
+| Environment | Leave blank; this workflow does not use a GitHub environment. |
+
+Then remove the `NPM_TOKEN` repository secret. The workflow already grants `id-token: write`, uses a GitHub-hosted Ubuntu runner, and uses Node 24 with a current npm version supporting trusted publishing (npm 11.5.1 or newer). npm can authenticate through OIDC without a stored token. Trusted publishing must be configured on npm; granting the GitHub permission alone is insufficient. See [npm trusted publishing](https://docs.npmjs.com/trusted-publishers/).
+
+## Publish a version
+
+Commit and push the intended source and matching package/lockfile versions. For the current first version:
 
 ```bash
-npm login
-npm publish --access public
+git push origin main
+git tag v1.0.0
+git push origin v1.0.0
 ```
 
-The `prepublishOnly` hook runs the tests, build, and package smoke test before publication. Publishing a package version makes it available to users; review the version and package contents first. Existing versions cannot be overwritten with a new build under the same version number.
+For subsequent versions, use `npm version patch` (or `minor` / `major`) on a clean checkout, then push the resulting commit and version tag. A prerelease such as `1.1.0-beta.1` requires tag `v1.1.0-beta.1` and publishes under `next`.
+
+The workflow publishes the already built and verified tarball with lifecycle scripts disabled; the reusable verification job has already run the tests, build, and package smoke test. Local `npm publish --access public` remains possible after `npm login`; its `prepublishOnly` hook performs those checks itself.
+
+Watch the **Publish to npm** run in [Actions](https://github.com/jc01rho/omo-herdr-dag/actions/workflows/publish.yml). If authentication fails before publication, configure it and rerun the failed job. If a version was already published, bump the version for new contents rather than moving the old release tag. A successful dry run verifies packaging, not npm write permission.
 
 After successful publication, users can run:
 

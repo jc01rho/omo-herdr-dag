@@ -66,6 +66,8 @@ export class DagPane {
         if (!/pane_not_found|unknown pane|pane .*not found/i.test(detail)) throw error;
       }
     }
+    // Resolve and validate the viewer runtime before creating a terminal pane.
+    if (typeof this.node === 'function') this.node = await this.node();
     // Record an attempt before mutation: a timeout must not create repeated orphan panes.
     await writeJson(this.recordFile, { attempted: true });
     const result = await this.herdr('split', '--pane', this.parentPane, '--direction', 'right',

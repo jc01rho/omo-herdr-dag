@@ -121,10 +121,13 @@ q를 눌러 닫아도 됩니다.
 | --- | --- | --- |
 | `OMO_HERDR_DAG_STATE_DIR` | `~/.omo/agent/herdr-dag/` | snapshot과 pane 기록의 저장 위치. OmO 시작 전에 설정합니다. |
 | `OMO_HERDR_DAG_LANG` | 설치 시 저장한 언어, 최초 `en` | `en` 또는 `ko`로 인터페이스 언어를 덮어씁니다. OmO 시작 또는 확장 재로딩 전에 설정합니다. |
+| `OMO_HERDR_DAG_NODE` | 검증한 호스트 Node, 없으면 `PATH`의 `node` | Viewer를 실행할 Node.js 24+ 실행 파일. OmO 시작 전에 설정하며 공백이 있는 경로도 지원합니다. |
 
 `install --lang ko`로 선택한 언어는 설치본의 `integration/locale.json`에 저장됩니다. 다른 `--lang` 값을 지정하지 않으면 업데이트 때도 유지합니다. 영어로 되돌리려면 `install --lang en`을 실행하세요. 환경 변수 설정이 저장된 언어보다 우선하며, 지원하지 않는 환경 변수 값은 영어로 처리합니다.
 
 Herdr는 각 pane에 `HERDR_ENV`, `HERDR_PANE_ID`, `HERDR_SOCKET_PATH`를 제공합니다. 이 환경 밖에서는 확장이 비활성 상태를 유지합니다. 다른 pane을 대상으로 삼기 위해 이 변수들을 수동으로 설정하지 마세요.
+
+`omob` 같은 독립 실행 빌드에서도 viewer용 Node.js 24 이상을 별도로 설치해야 합니다. 확장은 pane을 열기 전에 런타임을 검증하며, `node`가 버전 관리자의 shim인 경우에도 실제 Node 실행 파일 경로를 확인합니다. 컴파일된 OmO 바이너리로 viewer를 실행하지 않습니다. 경로를 직접 지정하려면 `OMO_HERDR_DAG_NODE=/absolute/path/to/node omob`로 시작하세요. 명시한 경로가 유효하지 않으면 다른 런타임으로 대체하지 않고 경고합니다.
 
 Snapshot은 로컬 JSON 파일입니다. 세션·실행 ID, 이름, 노드 이름과 상태, task ID, 의존 관계, 오류 메시지를 저장합니다. Workflow 프롬프트는 제외하지만 이름이나 오류에 프로젝트 정보가 포함될 수 있습니다. 런타임 파일을 공개 이슈나 소스 저장소에 포함하지 마세요. 확장은 별도 외부 네트워크 서비스나 텔레메트리를 추가하지 않습니다.
 
@@ -141,6 +144,7 @@ npm 게시 이후에는 `npx omo-herdr-dag@latest install`을 다시 실행하�
 | `/dag-pane` 명령이 없습니다. | OmO를 재로딩하고 실제 사용하는 에이전트 디렉터리에 설치했는지, Herdr 안에서 실행 중인지 확인하세요. |
 | Pane이 자동으로 열리지 않습니다. | 이 확장은 **workflow DAG**를 표시합니다. 일반 task나 `parallel()` 호출이 항상 필요한 이벤트를 만드는 것은 아닙니다. OmO 버전도 확인하세요. |
 | 닫은 pane이 다시 열리지 않습니다. | 의도한 동작입니다. `/dag-pane`으로 다시 여세요. |
+| `omob`에서 `Unknown options: --state, --close-pane`이 나옵니다. | 확장을 업데이트하고 실패한 DAG pane을 닫은 뒤, OmO에서 `/reload`, `/dag-pane`을 순서대로 실행하세요. 이전 실행 코드가 컴파일된 OmO 바이너리를 Node로 잘못 사용하던 문제입니다. |
 | `DAG pane:` 경고가 나옵니다. | `PATH`에서 `herdr`를 찾을 수 있는지, `pane split`, `get`, `rename`, `run`을 지원하는지 확인하세요. 실행 실패나 응답 유실 시 중복 생성을 막기 위해 자동 재시도를 중지합니다. 생성 중이던 viewer pane을 확인하고 닫은 뒤 재시도하세요. |
 | 의존 관계 선을 따라가기 어렵습니다. | 각 노드의 선행 ID와 그래프 아래 전체 간선 목록을 확인하세요. 필요한 경우 스크롤할 수 있습니다. |
 

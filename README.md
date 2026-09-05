@@ -121,10 +121,13 @@ You may keep the snapshot open for reference or press `q` to close the viewer an
 | --- | --- | --- |
 | `OMO_HERDR_DAG_STATE_DIR` | `~/.omo/agent/herdr-dag/` | Directory for snapshots and pane records. Set before starting OmO. |
 | `OMO_HERDR_DAG_LANG` | Saved installation language, initially `en` | Override the interface language with `en` or `ko`. Set before starting OmO or reloading the extension. |
+| `OMO_HERDR_DAG_NODE` | Validated host Node, otherwise `node` on `PATH` | Node.js 24+ executable for the viewer. Set before starting OmO; paths containing spaces are supported. |
 
 `install --lang ko` saves the selection in the installed `integration/locale.json`. Updates retain that choice unless you pass another `--lang` value. Use `install --lang en` to switch back to English. The environment override takes precedence; unsupported override values fall back to English.
 
 Herdr supplies `HERDR_ENV`, `HERDR_PANE_ID`, and `HERDR_SOCKET_PATH` to its panes. Outside that environment, the extension stays inactive. Do not set those variables manually to target another pane.
+
+Standalone builds such as `omob` still need a separate Node.js 24+ installation for the viewer. The extension checks the runtime before opening a pane and resolves the actual Node executable, including when `node` is a version-manager shim. It does not launch the viewer through the compiled OmO binary. To select Node explicitly, start OmO with `OMO_HERDR_DAG_NODE=/absolute/path/to/node omob`. An invalid explicit path produces a warning instead of falling back to another runtime.
 
 Snapshots are local JSON files. They contain session and run IDs, names, node labels, states, task IDs, dependency edges, and error messages. Workflow prompts are omitted, but labels and errors may still contain project information. Keep runtime files out of public issue reports and source control. The extension adds no external network service or telemetry.
 
@@ -141,6 +144,7 @@ To uninstall, remove `~/.omo/agent/extensions/herdr-dag.js`, then reload or rest
 | `/dag-pane` is unavailable | Reload OmO, confirm the extension was installed in its active agent directory, and confirm OmO is running inside Herdr. |
 | No pane opens automatically | This extension displays **workflow DAGs**. Ordinary tasks and generic `parallel()` calls do not necessarily produce the required event. Check the OmO version. |
 | A pane was closed and stays closed | This is intentional. Run `/dag-pane` to reopen it. |
+| `omob` reports `Unknown options: --state, --close-pane` | Update this extension, close the failed DAG pane, run `/reload` in OmO, then `/dag-pane`. The old launcher mistook the compiled OmO binary for Node. |
 | A `DAG pane:` warning appears | Confirm `herdr` is on `PATH` and supports `pane split`, `get`, `rename`, and `run`. A failed or uncertain launch suppresses automatic retries to avoid duplicate panes. Inspect and close any incomplete viewer pane before retrying. |
 | An edge is hard to follow | Inspect the incoming IDs inside each node and the complete edge list below the graph. Scroll if necessary. |
 

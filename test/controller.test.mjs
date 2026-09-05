@@ -70,3 +70,19 @@ test('the selected language is persisted for the viewer', async t => {
   await controller.receive(payload());
   assert.equal((await readJson(controller.stateFile)).language, 'ko');
 });
+
+test('runtime failure creates no pane or attempt record and can be retried', async t => {
+  const { options, calls } = await setup(t);
+  let available = false, probes = 0;
+  const node = async () => { probes++; if (!available) throw new Error('Node unavailable'); return '/opt/Node Runtime/node'; };
+  const controller = new DagPane({ ...options, node });
+  await assert.rejects(controller.open(), /Node unavailable/);
+  assert.equal(calls.length, 0);
+  assert.equal(await readJson(controller.recordFile), null);
+  available = true;
+  await controller.open();
+  assert.match(calls.find(c => c[0] === 'run')[2], /^'\/opt\/Node Runtime\/node' '\/tmp\/viewer.mjs' '--state'/);
+  await controller.open();
+  assert.equal(probes, 2);
+  assert.equal(calls.filter(c => c[0] === 'split').length, 1);
+});

@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
 import { DagPane } from './src/controller.mjs';
 import { createHerdr } from './src/herdr.mjs';
+import { resolveViewerNode } from './src/runtime.mjs';
 import { t, languageOf } from './src/i18n.mjs';
 
 export default function extension(pi) {
@@ -30,7 +31,7 @@ export default function extension(pi) {
     if (/[/\\]senpi-task[/\\]children[/\\]/.test(ctx.sessionManager.getSessionFile?.() ?? '')) return;
     controller = new DagPane({ sessionId: ctx.sessionManager.getSessionId(),
       parentPane: process.env.HERDR_PANE_ID, socket: process.env.HERDR_SOCKET_PATH,
-      stateDir, cwd: pi.cwd, node: process.execPath, viewer, herdr: createHerdr(), language,
+      stateDir, cwd: pi.cwd, node: () => resolveViewerNode({ language }), viewer, herdr: createHerdr(), language,
       notify: message => ctx.ui.notify(message, 'warning') });
     // Confirmed in senpi/dist/core/event-bus.js and extensions/loader.js:
     // pi.rpc.emit forwards {name, data} through this shared event channel.

@@ -24,13 +24,15 @@ The live check used the actual Senpi loader and `pi.rpc.emit()` with an explicit
 
 ## Current limits
 
-The current source also passes 14 deterministic behavior tests, including English-default and Korean rendering, and a local npm distribution build. The package smoke check installs the actual tarball offline and verifies CLI execution, language selection and persistence, installer dry-run, extension imports, updates, and the MIT notice. These checks do not replace the live compatibility limits below.
+The current source also passes 20 behavior tests, including English-default and Korean rendering, Node runtime selection, and a real Node executable probe, plus a local npm distribution build. The package smoke check installs the actual tarball offline and verifies CLI execution, language selection and persistence, installer dry-run, extension imports, updates, and the MIT notice. These checks do not replace the live compatibility limits below.
+
+The standalone `omob` launcher issue was fixed by resolving and probing a separate Node.js 24+ runtime instead of using the compiled OmO executable as an interpreter. Regression checks cover a compiled host path, normal Node hosts, explicit overrides, unsupported runtimes, and failure before pane creation. After installing the fix, the viewer rendered the reported state using `--once` with a simulated compiled-host executable path and the real Node 24.14.0 fallback. The installed Senpi loader and RPC bus checks also passed. These checks did not restart the active `omob` session or verify its compiled extension loader end to end.
 
 - **Unmodified Herdr without custom OmO registration:** the implementation only uses ordinary pane commands and does not require agent recognition. A clean installation has not yet been tested end to end.
 - **Real workflow production path:** the OmO event producer was inspected, and synthetic events were verified through the native bus. A complete real-workflow smoke test remains to be recorded.
 - **Native macOS and Windows:** unverified. All observed execution environments above were Linux.
 - **Other OmO/Senpi versions:** unverified. Internal event contracts may change; the current source-level verifier is specific to the inspected beta.42 bundle.
-- **CI:** a Linux matrix for Node 24 and 26 runs tests, builds, npm package checks, and artifact upload. No hosted CI result is claimed until the workflow runs in the public repository.
+- **CI:** a Linux matrix for Node 24 and 26 runs tests, builds, npm package checks, and artifact upload. Hosted CI and the release workflow's manual npm dry run have passed in the public repository; actual npm publication requires separate authentication.
 - **Interface language:** English is now the default. Korean is selectable through `install --lang ko` or `OMO_HERDR_DAG_LANG=ko`. Both English and Korean README files are provided. The earlier live-pane baseline above used the original Korean interface.
 
 Use [CONTRIBUTING.md](CONTRIBUTING.md) to reproduce the checks. Add new compatibility evidence only after running the relevant environment, and omit private hostnames, session IDs, and local account paths from public results.

@@ -137,6 +137,27 @@ Snapshot은 로컬 JSON 파일입니다. 세션·실행 ID, 이름, 노드 이�
 
 제거하려면 `~/.omo/agent/extensions/herdr-dag.js`를 삭제하고 OmO를 재로딩하거나 재시작하세요. 기존 DAG pane은 직접 닫아 주세요. `~/.omo/agent/herdr-dag/`는 기록으로 보관하거나 별도로 삭제할 수 있습니다. 다른 에이전트 디렉터리에 설치했다면 해당 디렉터리의 진입점을 제거하세요.
 
+## 자주 묻는 질문 (FAQ)
+
+### OmO 플러그인인가요, Herdr 플러그인인가요?
+
+**OmO 확장(extension)**입니다. 설치 프로그램이 OmO의 에이전트 디렉터리에 확장을 넣고, OmO 안에서 workflow 상태 변경을 구독합니다. DAG viewer를 열고 관리할 때 Herdr의 일반 `pane` 명령을 사용하며, Herdr 자체에 플러그인을 설치하지는 않습니다.
+
+### Herdr가 없거나 Herdr 밖에서 OmO를 실행하면 어떻게 되나요?
+
+| 실행 환경 | 동작 |
+| --- | --- |
+| Herdr가 설치되지 않음 | 확장은 설치할 수 있지만, 일반 터미널에서는 비활성 상태를 유지합니다. |
+| Herdr가 설치되어 있어도 일반 터미널에서 OmO 실행 | 확장은 비활성화되고 `/dag-pane`도 등록되지 않습니다. Herdr 앱이 열려 있는 것만으로는 활성화되지 않습니다. |
+| Herdr pane 안에서 OmO 실행 | 확장이 활성화되고 `/dag-pane`을 등록하며, workflow DAG가 도착하면 viewer를 엽니다. |
+| Herdr 환경 변수는 있지만 CLI나 소켓을 사용할 수 없음 | Pane 조작에 실패하면 경고를 표시합니다. OmO 대화는 계속할 수 있습니다. |
+
+Herdr가 제공하는 `HERDR_ENV=1`과 값이 있는 `HERDR_PANE_ID`, `HERDR_SOCKET_PATH`가 모두 있어야 활성화됩니다. 비활성 세션에서는 DAG 이벤트를 구독하거나 viewer pane을 열지 않습니다. Viewer를 사용하려면 환경 변수를 수동으로 지정하지 말고 Herdr pane 안에서 새 OmO 세션을 시작하세요.
+
+### Herdr에 OmO를 커스텀 에이전트로 등록해야 하나요?
+
+아니요. Herdr의 일반 터미널 pane에서 `omo` 또는 `omob`를 직접 실행하면 됩니다. 확장은 pane ID와 CLI 명령을 사용하므로 Herdr의 에이전트 등록이나 사이드바 인식이 필요하지 않습니다. 다만 커스텀 설정이 없는 순정 Herdr에서의 전체 동작 검증은 아직 남아 있습니다. 확인 범위는 [VERIFICATION.md](VERIFICATION.md)를 참고하세요.
+
 ## 문제 해결
 
 | 증상 | 확인 사항 |

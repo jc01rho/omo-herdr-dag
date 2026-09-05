@@ -137,6 +137,27 @@ To update, run `npx omo-herdr-dag@latest install` again. For a source installati
 
 To uninstall, remove `~/.omo/agent/extensions/herdr-dag.js`, then reload or restart OmO. Close any existing DAG panes yourself. You may keep `~/.omo/agent/herdr-dag/` as a record, or remove it separately. For a custom installation, remove the entry point from that agent directory instead.
 
+## FAQ
+
+### Is this an OmO plugin or a Herdr plugin?
+
+It is an **OmO extension**. The installer places it in OmO's agent directory, where it listens for workflow updates. It uses Herdr's ordinary `pane` commands to open and manage the DAG viewer; no plugin is installed into Herdr itself.
+
+### What happens if Herdr is missing or I start OmO outside Herdr?
+
+| Environment | Behavior |
+| --- | --- |
+| Herdr is not installed | You can install the extension, but it stays inactive in an ordinary terminal. |
+| Herdr is installed, but OmO runs in an ordinary terminal | The extension stays inactive and does not register `/dag-pane`. Having the Herdr application open is not enough. |
+| OmO runs inside a Herdr pane | The extension activates, registers `/dag-pane`, and opens the viewer when a workflow DAG arrives. |
+| Herdr environment variables are present, but its CLI or socket is unavailable | A pane operation reports a warning when it fails. You can continue the OmO conversation. |
+
+Activation requires `HERDR_ENV=1` and nonempty `HERDR_PANE_ID` and `HERDR_SOCKET_PATH`, supplied by Herdr. Inactive sessions do not subscribe to DAG updates or open viewer panes. To use the viewer, start a new OmO session inside a Herdr pane rather than setting these variables manually.
+
+### Must I register OmO as a custom agent in Herdr?
+
+No. Run `omo` or `omob` directly in a normal Herdr terminal pane. The extension uses pane IDs and CLI commands, so it does not require Herdr's agent registration or sidebar recognition. A clean, unmodified Herdr installation has not yet been verified end to end; see [VERIFICATION.md](VERIFICATION.md) for the tested scope.
+
 ## Troubleshooting
 
 | Symptom | Check |

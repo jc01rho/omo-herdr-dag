@@ -37,9 +37,9 @@
 
 ## 설치
 
-OmO와 Herdr를 먼저 각각 설치하세요. npm 배포를 위한 구성을 제공하지만, 첫 npm 릴리스는 아직 게시하지 않았습니다.
+OmO와 Herdr를 먼저 각각 설치하세요. 패키지는 [npm](https://www.npmjs.com/package/omo-herdr-dag)에서 설치할 수 있습니다.
 
-### npm으로 설치 (첫 릴리스 이후)
+### npm으로 설치
 
 ```bash
 npx omo-herdr-dag@latest install --dry-run
@@ -133,7 +133,7 @@ Snapshot은 로컬 JSON 파일입니다. 세션·실행 ID, 이름, 노드 이�
 
 ## 업데이트와 제거
 
-npm 게시 이후에는 `npx omo-herdr-dag@latest install`을 다시 실행하면 업데이트됩니다. 소스로 설치했다면 새 소스를 받은 뒤 설치 프로그램을 다시 실행하세요. 기존 integration 디렉터리는 백업하고 런타임 기록과 언어 선택은 유지합니다. 설치본은 원본 소스 디렉터리나 npm 캐시와 독립적으로 동작합니다. 이미 실행 중인 OmO 세션에서는 `/reload`를 실행하세요.
+업데이트하려면 `npx omo-herdr-dag@latest install`을 다시 실행하면 업데이트됩니다. 소스로 설치했다면 새 소스를 받은 뒤 설치 프로그램을 다시 실행하세요. 기존 integration 디렉터리는 백업하고 런타임 기록과 언어 선택은 유지합니다. 설치본은 원본 소스 디렉터리나 npm 캐시와 독립적으로 동작합니다. 이미 실행 중인 OmO 세션에서는 `/reload`를 실행하세요.
 
 제거하려면 `~/.omo/agent/extensions/herdr-dag.js`를 삭제하고 OmO를 재로딩하거나 재시작하세요. 기존 DAG pane은 직접 닫아 주세요. `~/.omo/agent/herdr-dag/`는 기록으로 보관하거나 별도로 삭제할 수 있습니다. 다른 에이전트 디렉터리에 설치했다면 해당 디렉터리의 진입점을 제거하세요.
 
@@ -176,7 +176,7 @@ GitHub Actions는 Linux의 Node 24와 26에서 이 검증을 실행하고 npm `.
 
 ## 배포 방식
 
-GitHub에는 소스와 CI 아티팩트를 보관합니다. npm 게시 후에는 레지스트리에서 버전별 CLI·확장 패키지를 받습니다. 설치 프로그램이 런타임 파일을 OmO 에이전트 디렉터리에 복사하고 로컬에서 실행하므로 별도 애플리케이션 서버는 필요하지 않습니다. CI에서 받은 패키지는 `npm install -g ./omo-herdr-dag-1.0.0.tgz`로 설치한 뒤 `omo-herdr-dag install`을 실행할 수 있습니다.
+GitHub에는 소스와 CI 아티팩트를 보관합니다. npm 레지스트리에서 버전별 CLI·확장 패키지를 받습니다. 설치 프로그램이 런타임 파일을 OmO 에이전트 디렉터리에 복사하고 로컬에서 실행하므로 별도 애플리케이션 서버는 필요하지 않습니다. CI에서 받은 패키지는 `npm install -g ./omo-herdr-dag-1.0.0.tgz`로 설치한 뒤 `omo-herdr-dag install`을 실행할 수 있습니다.
 
 `v1.0.0` 같은 버전 태그를 push하면 **Release to GitHub and npm** workflow가 Node 24·26 검증과 태그·패키지 버전 일치 확인 후 검증한 패키지를 자동으로 npm에 게시합니다. 동시에 [GitHub Releases](https://github.com/jc01rho/omo-herdr-dag/releases)에도 자동 생성한 릴리스 노트와 `.tgz` 다운로드를 등록합니다. npm 게시에는 사전 인증 설정이 필요하며, GitHub 릴리스는 기본 GitHub 토큰으로 독립적으로 생성됩니다. 일반 브랜치 push는 CI만 실행하고, 게시 workflow의 수동 실행은 실제 게시 없이 dry run으로 검증합니다. 사전 릴리스 버전은 npm의 `next` 태그로 게시합니다. 인증 설정과 릴리스 절차는 [RELEASING.md](RELEASING.md)에 정리했습니다.
 

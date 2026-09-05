@@ -1,6 +1,6 @@
 # Releases and npm distribution
 
-The repository produces a dependency-free npm package named `omo-herdr-dag`. The package is configured for public publication, but has not been published as part of this setup. A registry lookup on 2026-09-05 returned no public package under that name; this does not reserve the name or guarantee publishing permission.
+The repository produces the dependency-free [omo-herdr-dag npm package](https://www.npmjs.com/package/omo-herdr-dag). Version 1.0.0 was published on 2026-09-05 from the verified GitHub Release tarball after interactive npm authentication. The registry tarball matches the GitHub asset (SHA1 `b88d275f5e3b90d3941cfdaba151ad9906027c0c`). Configure trusted publishing below before relying on unattended subsequent releases.
 
 ## What ships
 
@@ -67,12 +67,12 @@ Then remove the `NPM_TOKEN` environment secret and any repository secret with th
 
 ## Publish a version
 
-Commit and push the intended source and matching package/lockfile versions. For the current first version:
+Commit and push the intended source and matching package/lockfile versions. For a new version (replace `1.0.1` with the intended version):
 
 ```bash
 git push origin main
-git tag v1.0.0
-git push origin v1.0.0
+git tag v1.0.1
+git push origin v1.0.1
 ```
 
 For subsequent versions, use `npm version patch` (or `minor` / `major`) on a clean checkout, then push the resulting commit and version tag. A prerelease such as `1.1.0-beta.1` requires tag `v1.1.0-beta.1` and publishes under `next`.
@@ -102,4 +102,4 @@ npx omo-herdr-dag@latest install
 npx omo-herdr-dag@latest install --lang ko
 ```
 
-Remove the initial-unpublished notice from both READMEs when the first package release is available. GitHub hosts the source; npm serves package downloads; the extension and TUI run locally inside the user's OmO/Herdr environment. No hosted application service is needed.
+GitHub hosts the source; npm serves package downloads; the extension and TUI run locally inside the user's OmO/Herdr environment. No hosted application service is needed.

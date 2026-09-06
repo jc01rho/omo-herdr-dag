@@ -6,7 +6,8 @@ import { fileURLToPath } from 'node:url';
 import { languageOf, t } from '../src/i18n.mjs';
 
 const source = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const agentDir = process.argv.includes('--agent-dir') ? resolve(process.argv[process.argv.indexOf('--agent-dir') + 1]) : join(homedir(), '.omo', 'agent');
+const agentDir = resolve(process.argv.includes('--agent-dir') ? process.argv[process.argv.indexOf('--agent-dir') + 1]
+  : process.env.OMO_CODING_AGENT_DIR || process.env.SENPI_CODING_AGENT_DIR || join(homedir(), '.omo', 'agent'));
 const container = join(agentDir, 'herdr-dag', 'integration');
 const wrapper = join(agentDir, 'extensions', 'herdr-dag.js');
 const marker = '// managed by omo-herdr-dag';

@@ -224,7 +224,7 @@ test('runtime failure creates no pane or attempt record and can be retried', asy
   assert.equal(await readJson(controller.recordFile), null);
   available = true;
   await controller.open();
-  assert.match(calls.find(c => c[0] === 'run')[2], /^'\/opt\/Node Runtime\/node' '\/tmp\/viewer.mjs' '--state'/);
+  assert.match(calls.find(c => c[0] === 'run')[2], /^(?:& )?'\/opt\/Node Runtime\/node' '\/tmp\/viewer.mjs' '--state'/);
   await controller.open();
   assert.equal(probes, 2);
   assert.equal(calls.filter(c => c[0] === 'split').length, 1);

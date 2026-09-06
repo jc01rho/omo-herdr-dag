@@ -8,11 +8,22 @@ import { execFileSync } from 'node:child_process';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const temp = await mkdtemp(join(tmpdir(), 'omo-dag-package-test-'));
 const env = { ...process.env, npm_config_cache: join(temp, 'npm-cache'), npm_config_update_notifier: 'false' };
-const run = (program, args, cwd = root) => execFileSync(program, args, { cwd, env, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+// npm run exports the user's global script allowlist as an environment option;
+// npm 12 rejects that option for this isolated local install. Scripts stay disabled.
+for (const key of Object.keys(env)) if (key.toLowerCase() === 'npm_config_allow_scripts') delete env[key];
+const npmCli = process.env.npm_execpath ?? join(dirname(process.execPath), 'node_modules/npm/bin/npm-cli.js');
+const run = (program, args, cwd = root) => {
+  // npm.cmd cannot be passed to execFile on Windows. Invoke npm's JS entry
+  // directly, preserving argv without introducing another command shell.
+  const windowsNpm = process.platform === 'win32' && program === 'npm';
+  return execFileSync(windowsNpm ? process.execPath : program, windowsNpm ? [npmCli, ...args] : args,
+    { cwd, env, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+};
 try {
   await readFile(join(root, 'dist/extension.mjs')); // Build explicitly before checking the artifact.
   const pkg = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'));
-  const [packed] = JSON.parse(run('npm', ['pack', '--ignore-scripts', '--json', '--pack-destination', temp]));
+  const packResult = JSON.parse(run('npm', ['pack', '--ignore-scripts', '--json', '--pack-destination', temp]));
+  const packed = Array.isArray(packResult) ? packResult[0] : packResult[pkg.name]; // npm 12 keys results by package name.
   const paths = new Set(packed.files.map(file => file.path));
   for (const path of ['package.json', 'LICENSE', 'bin/omo-herdr-dag.mjs', 'dist/extension.mjs', 'dist/LICENSE',
     'dist/src/viewer.mjs', 'dist/src/controller.mjs', 'dist/scripts/install.mjs', 'README.md', 'README_KO.md']) {

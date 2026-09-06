@@ -36,7 +36,7 @@ The screenshots show an earlier Korean interface. New installations default to *
 
 **Custom OmO agent registration in Herdr is not required by this extension.** Open a normal Herdr terminal pane and run `omo` yourself. The extension uses pane IDs and ordinary `herdr pane` commands; it does not call `herdr agent start` or depend on sidebar agent recognition.
 
-The architecture supports that setup, but a clean, unmodified Herdr installation has **not yet been verified end to end**. See [verification and compatibility](VERIFICATION.md) for the exact coverage. Native macOS and Windows support is also unverified.
+The architecture supports that setup, but a clean, unmodified Herdr installation has **not yet been verified end to end**. See [verification and compatibility](VERIFICATION.md) for the exact coverage. Windows PowerShell viewer launch and real saved-workflow rendering have been verified locally; native macOS remains unverified. Windows panes are expected to use PowerShell, not cmd.exe or Git Bash.
 
 ## Install
 
@@ -66,14 +66,15 @@ Clone this repository and run the installer:
 ```bash
 git clone https://github.com/jc01rho/omo-herdr-dag.git
 cd omo-herdr-dag
+npm ci --ignore-scripts
 npm test
 node scripts/install.mjs --dry-run
 node scripts/install.mjs
 ```
 
-There are no npm dependencies. `--dry-run` prints the destinations without changing files. The source installer also accepts `--lang en` or `--lang ko`.
+There are no runtime npm dependencies. Windows tests use the development-only `node-pty` ConPTY bridge; POSIX tests use Python 3 and a Unix PTY. `--dry-run` prints the destinations without changing files. The source installer also accepts `--lang en` or `--lang ko`.
 
-The installer creates:
+The installer uses `--agent-dir`, then `OMO_CODING_AGENT_DIR`, then `SENPI_CODING_AGENT_DIR`, falling back to `~/.omo/agent`. For example, with `OMO_CODING_AGENT_DIR=~/.omo`, the entry is `~/.omo/extensions/herdr-dag.js`, not `~/.omo/agent/extensions/herdr-dag.js`. The default fallback layout is:
 
 ```text
 ~/.omo/agent/
@@ -143,7 +144,7 @@ You may keep the snapshot open for reference or press `q` to close the viewer an
 
 `install --lang ko` saves the selection in the active generation's `locale.json`. The installer prints that directory as `integration`; `integration/current.json` identifies the current generation. Updates retain the language unless you pass another `--lang` value. Use `install --lang en` to switch back to English. The environment override takes precedence; unsupported override values fall back to English.
 
-Herdr supplies `HERDR_ENV`, `HERDR_PANE_ID`, and `HERDR_SOCKET_PATH` to its panes. Outside that environment, the extension stays inactive. Do not set those variables manually to target another pane.
+Herdr supplies `HERDR_ENV`, `HERDR_PANE_ID`, and `HERDR_SOCKET_PATH` to its panes. Outside that environment, the extension stays inactive. Do not set those variables manually to target another pane. When supplied, `HERDR_BIN_PATH` selects Herdr's executable directly; otherwise it is resolved on `PATH`.
 
 Standalone builds such as `omob` still need a separate Node.js 24+ installation for the viewer. The extension checks the runtime before opening a pane and resolves the actual Node executable, including when `node` is a version-manager shim. It does not launch the viewer through the compiled OmO binary. To select Node explicitly, start OmO with `OMO_HERDR_DAG_NODE=/absolute/path/to/node omob`. An invalid explicit path produces a warning instead of falling back to another runtime.
 

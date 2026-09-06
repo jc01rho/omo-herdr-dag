@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { readJson, writeJson } from './storage.mjs';
-import { quote } from './herdr.mjs';
+import { shellCommand } from './herdr.mjs';
 import { normalizeRun, sessionRuns } from './model.mjs';
 import { t, languageOf } from './i18n.mjs';
 import { TaskData } from './task-data.mjs';
@@ -133,7 +133,7 @@ export class DagPane {
     if (!paneId) throw new Error(t(this.language, 'missingPaneId'));
     await writeJson(this.recordFile, { paneId, ready: false });
     await this.herdr('rename', paneId, `DAG · ${this.sessionId.slice(0, 8)}`);
-    await this.herdr('run', paneId, [this.node, this.viewer, '--state', this.stateFile, '--close-pane', paneId].map(quote).join(' '));
+    await this.herdr('run', paneId, shellCommand([this.node, this.viewer, '--state', this.stateFile, '--close-pane', paneId]));
     await writeJson(this.recordFile, { paneId, ready: true });
     return paneId;
   }

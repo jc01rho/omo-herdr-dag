@@ -280,8 +280,10 @@ finally:
 
 function openViewer(file, t) {
   const events = new EventEmitter();
-  const child = spawn('python3', ['-u', '-c', bridge, process.execPath,
-    fileURLToPath(new URL('../src/viewer.mjs', import.meta.url)), '--state', file], { stdio: ['pipe', 'pipe', 'pipe'] });
+  const viewerArgs = [fileURLToPath(new URL('../src/viewer.mjs', import.meta.url)), '--state', file];
+  const child = process.platform === 'win32'
+    ? spawn(process.execPath, [fileURLToPath(new URL('./windows-pty.mjs', import.meta.url)), ...viewerArgs], { stdio: ['pipe', 'pipe', 'pipe'] })
+    : spawn('python3', ['-u', '-c', bridge, process.execPath, ...viewerArgs], { stdio: ['pipe', 'pipe', 'pipe'] });
   let buffer = '', stderr = '', lastFrame = '';
   child.stderr.on('data', data => { stderr += data; });
   child.stdout.setEncoding('utf8');

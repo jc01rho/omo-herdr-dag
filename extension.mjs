@@ -32,14 +32,17 @@ export default function extension(pi) {
     controller = new DagPane({ sessionId: ctx.sessionManager.getSessionId(),
       parentPane: process.env.HERDR_PANE_ID, socket: process.env.HERDR_SOCKET_PATH,
       stateDir, cwd: pi.cwd, node: () => resolveViewerNode({ language }), viewer, herdr: createHerdr(), language,
+      taskStateDir: process.env.OMO_HERDR_DAG_TASK_STATE_DIR,
       notify: message => ctx.ui.notify(message, 'warning') });
     // Confirmed in senpi/dist/core/event-bus.js and extensions/loader.js:
     // pi.rpc.emit forwards {name, data} through this shared event channel.
     unsubscribe = pi.events.on('senpi:extension-rpc-event', event => {
-      if (event?.name !== 'omo.dag.updated') return;
-      try { void controller?.receive(event.data).catch(() => {}); }
+      if (event?.name !== 'omo.dag.updated' && event?.name !== 'omo.task.updated') return;
+      // DagPane.enqueue reports rejected jobs; the event bus cannot await them.
+      try { void (event.name === 'omo.dag.updated' ? controller?.receive(event.data) : controller?.receiveTasks(event.data))?.catch(() => {}); }
       catch (error) { ctx.ui.notify(`DAG pane: ${error.message}`, 'warning'); }
     });
+    await controller.start().catch(() => {}); // The queue reports startup errors to the UI.
   });
   pi.on('session_shutdown', stop);
   pi.registerCommand('dag-pane', {

@@ -19,6 +19,9 @@ The screenshots show an earlier Korean interface. New installations default to *
 - Reuses the session's pane across updates and extension reloads.
 - Keeps completed and failed runs visible after the session ends.
 - Supports scrolling and switching between runs.
+- Shows task details and explicitly linked child tasks, expanded by default.
+- Displays ordinary subtasks from the current session even when no workflow DAG exists.
+- Remembers each node's expanded or collapsed state across updates and viewer restarts.
 - Respects manual closure: use `/dag-pane` to reopen the viewer.
 - Uses Node built-ins, with no npm dependencies or changes to the OmO package.
 
@@ -75,7 +78,9 @@ The installer creates:
 ```text
 ~/.omo/agent/
 ├── extensions/herdr-dag.js          # Extension entry point
-└── herdr-dag/integration/           # Installed extension and viewer
+└── herdr-dag/integration/
+    ├── current.json                # Active installation generation
+    └── generation-000001/           # Extension, src/, locale.json, LICENSE
 ```
 
 Start a new OmO session inside Herdr, or run `/reload` in an existing session. The first workflow DAG snapshot opens the viewer automatically. You can also run `/dag-pane` in OmO to open an empty viewer while waiting for a DAG.
@@ -95,6 +100,8 @@ The npm CLI accepts the same `--agent-dir` option.
 
 Type `/dag-pane` in OmO to open the viewer before a workflow starts, or to reopen a pane you closed. It waits for a workflow snapshot, then displays the graph as updates arrive.
 
+On startup, the extension also restores the current session's saved DAG checkpoints from `<task state directory>/dag/runs/` and joins their task details. If the viewer cache is empty, `/dag-pane` attempts the same recovery without rerunning any tasks. Checkpoints from other sessions are not displayed. Installing new files does not replace code already loaded by a running OmO session: reload the extension before using the recovery.
+
 ![The /dag-pane command in OmO, with completion describing how to open or reopen the current session's DAG pane.](https://raw.githubusercontent.com/jc01rho/omo-herdr-dag/main/docs/screenshots/dag-pane-command.png)
 
 | Where | Command or key | Action |
@@ -104,7 +111,14 @@ Type `/dag-pane` in OmO to open the viewer before a workflow starts, or to reope
 | DAG pane | `↑` / `↓`, `k` / `j` | Scroll. |
 | DAG pane | `Page Up` / `Page Down` | Scroll by a page. |
 | DAG pane | `←` / `→` | Switch between runs. |
+| DAG pane | `t` | Switch between DAG and ordinary Tasks. Without a DAG, Tasks is the default view. |
+| DAG pane | `Tab` / `n`, `Shift+Tab` / `p` | Select the next or previous node and bring its details into view. |
+| DAG pane | `Space` / `Enter` | Collapse or expand the selected node's details, including its child tasks. |
 | DAG pane | `q`, `Ctrl+C`, `Ctrl+D` | Close the viewer and its generated pane. |
+
+`>` marks the selected node, `[-]` means expanded, and `[+]` means collapsed. The graph and dependency list remain above the detail panels. Preferences live in `<snapshot path>.view.json`; this viewer-owned file is not overwritten by workflow updates.
+
+The same selection and collapse keys work in Tasks. Running tasks appear first, and ordinary task preferences are stored by task ID separately from DAG node preferences. The task count remains visible from the DAG view.
 
 When the OmO session ends, the last graph remains visible with a disconnected indicator and an explicit close hint:
 
@@ -120,10 +134,11 @@ You may keep the snapshot open for reference or press `q` to close the viewer an
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `OMO_HERDR_DAG_STATE_DIR` | `~/.omo/agent/herdr-dag/` | Directory for snapshots and pane records. Set before starting OmO. |
+| `OMO_HERDR_DAG_TASK_STATE_DIR` | `<project>/.omo/senpi-task/` | OmO task store root, containing `tasks/`. Set this to the same directory when using a custom OmO `task.state_dir`. |
 | `OMO_HERDR_DAG_LANG` | Saved installation language, initially `en` | Override the interface language with `en` or `ko`. Set before starting OmO or reloading the extension. |
 | `OMO_HERDR_DAG_NODE` | Validated host Node, otherwise `node` on `PATH` | Node.js 24+ executable for the viewer. Set before starting OmO; paths containing spaces are supported. |
 
-`install --lang ko` saves the selection in the installed `integration/locale.json`. Updates retain that choice unless you pass another `--lang` value. Use `install --lang en` to switch back to English. The environment override takes precedence; unsupported override values fall back to English.
+`install --lang ko` saves the selection in the active generation's `locale.json`. The installer prints that directory as `integration`; `integration/current.json` identifies the current generation. Updates retain the language unless you pass another `--lang` value. Use `install --lang en` to switch back to English. The environment override takes precedence; unsupported override values fall back to English.
 
 Herdr supplies `HERDR_ENV`, `HERDR_PANE_ID`, and `HERDR_SOCKET_PATH` to its panes. Outside that environment, the extension stays inactive. Do not set those variables manually to target another pane.
 
@@ -131,9 +146,15 @@ Standalone builds such as `omob` still need a separate Node.js 24+ installation 
 
 Snapshots are local JSON files. They contain session and run IDs, names, node labels, states, task IDs, dependency edges, and error messages. Workflow prompts are omitted, but labels and errors may still contain project information. Keep runtime files out of public issue reports and source control. The extension adds no external network service or telemetry.
 
+Task details are linked to workflow nodes by their task IDs. Available task descriptions, agent/model information, progress, timestamps, and counters appear alongside explicitly linked child tasks. Missing details are not estimated. A child-task relationship is separate from a workflow dependency; the viewer does not turn dependency edges into parent/child links.
+
+Progress is a selected latest assistant excerpt with the current tool when supplied by OmO, not a transcript. Stored progress is limited to 512 characters and descriptions to 2,000; the detail panels wrap the supplied text. Full task prompts, output, and final responses are not copied into these snapshots.
+
+Details start expanded. Your explicit expanded/collapsed choices are saved separately from workflow snapshots, keyed by run ID and node ID within the session. Status updates, task retries, switching runs, and restarting the viewer preserve those choices; new nodes start expanded. Task descriptions and progress text may also contain project information, so keep these local records private.
+
 ## Update and uninstall
 
-To update, run `npx omo-herdr-dag@latest install` again. For a source installation, obtain the new source and rerun the installer. It backs up the previous integration directory and preserves runtime records and your language choice. The installed copy is independent of the source checkout or npm cache. Run `/reload` in existing OmO sessions afterward.
+To update, run `npx omo-herdr-dag@latest install` again. For a source installation, obtain the new source and rerun the installer. Each installation creates a fresh generation directory, so `/reload` loads new transitive modules rather than cached code. Previous generations remain as backups; legacy flat installations are moved to a backup directory. Runtime records and language are preserved. The installed copy is independent of the source checkout or npm cache. Run `/reload` in existing OmO sessions afterward. Existing viewer processes also need restarting to load UI changes.
 
 To uninstall, remove `~/.omo/agent/extensions/herdr-dag.js`, then reload or restart OmO. Close any existing DAG panes yourself. You may keep `~/.omo/agent/herdr-dag/` as a record, or remove it separately. For a custom installation, remove the entry point from that agent directory instead.
 
@@ -163,7 +184,7 @@ No. Run `omo` or `omob` directly in a normal Herdr terminal pane. The extension 
 | Symptom | Check |
 | --- | --- |
 | `/dag-pane` is unavailable | Reload OmO, confirm the extension was installed in its active agent directory, and confirm OmO is running inside Herdr. |
-| No pane opens automatically | This extension displays **workflow DAGs**. Ordinary tasks and generic `parallel()` calls do not necessarily produce the required event. Check the OmO version. |
+| No pane opens automatically | The extension opens for workflow DAGs or current-session OmO tasks. Generic `parallel()` calls without OmO task records are not tasks. Check the OmO version and custom task-store path; manually closed panes require `/dag-pane`. |
 | A pane was closed and stays closed | This is intentional. Run `/dag-pane` to reopen it. |
 | `omob` reports `Unknown options: --state, --close-pane` | Update this extension, close the failed DAG pane, run `/reload` in OmO, then `/dag-pane`. The old launcher mistook the compiled OmO binary for Node. |
 | A `DAG pane:` warning appears | Confirm `herdr` is on `PATH` and supports `pane split`, `get`, `rename`, and `run`. A failed or uncertain launch suppresses automatic retries to avoid duplicate panes. Inspect and close any incomplete viewer pane before retrying. |
@@ -173,11 +194,15 @@ No. Run `omo` or `omob` directly in a normal Herdr terminal pane. The extension 
 
 ```text
 OmO workflow snapshot: omo.dag.updated
+OmO task progress: omo.task.updated + local task records
+Startup recovery: current-session DAG checkpoints
     → Senpi shared event bus: senpi:extension-rpc-event
     → Filter by the current parent session ID
     → Write a normalized local snapshot
     → Open/reuse a Herdr pane; its TUI watches the snapshot file
 ```
+
+Ordinary subtasks appear in a separate task list rather than as fabricated dependency nodes. Tasks already linked to any displayed DAG are excluded from that list; their children remain under the owning task. Only current-session tasks and their explicitly linked descendants are collected.
 
 The bridge listens to the installed Senpi event bus. It uses `herdr pane split --ratio 0.65 --no-focus`, `rename`, and `run` to create the viewer. Herdr's ratio refers to the original pane, leaving approximately 35% for the new pane.
 

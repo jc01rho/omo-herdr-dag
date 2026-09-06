@@ -19,6 +19,9 @@
 - 상태가 바뀌거나 확장이 재로딩되어도 같은 세션의 pane을 재사용합니다.
 - 세션 종료 후에도 완료·실패한 실행 결과를 화면에 남깁니다.
 - 스크롤과 여러 실행 사이의 전환을 지원합니다.
+- 작업 상세 정보와 실제로 연결된 자식 작업을 기본으로 펼쳐 표시합니다.
+- workflow DAG가 없어도 현재 세션의 일반 subtask를 표시합니다.
+- 사용자가 접거나 펼친 노드 상태를 화면 갱신과 viewer 재실행 후에도 유지합니다.
 - 직접 닫은 pane은 다시 열지 않습니다. `/dag-pane`으로 재개할 수 있습니다.
 - Node 내장 기능을 사용하며, npm 의존성 설치나 OmO 패키지 수정이 필요하지 않습니다.
 
@@ -75,7 +78,9 @@ npm 의존성은 없습니다. `--dry-run`은 파일을 변경하지 않고 설�
 ```text
 ~/.omo/agent/
 ├── extensions/herdr-dag.js          # 확장 진입점
-└── herdr-dag/integration/           # 설치된 확장 및 TUI
+└── herdr-dag/integration/
+    ├── current.json                # 현재 설치 세대
+    └── generation-000001/           # 확장, src/, locale.json, LICENSE
 ```
 
 Herdr 안에서 새 OmO 세션을 시작하거나, 기존 세션에서 `/reload`를 실행하세요. 첫 workflow DAG snapshot이 도착하면 pane이 자동으로 열립니다. OmO에서 `/dag-pane`을 실행하면 DAG를 기다리는 빈 화면을 미리 열 수도 있습니다.
@@ -95,6 +100,8 @@ npm CLI에서도 같은 `--agent-dir` 옵션을 사용할 수 있습니다.
 
 OmO에서 `/dag-pane`을 입력하면 workflow 시작 전에 viewer를 미리 열거나 직접 닫은 pane을 다시 열 수 있습니다. Workflow snapshot이 도착할 때까지 대기하고, 이후 상태 변경에 따라 그래프를 갱신합니다.
 
+확장 시작 시 `<task 저장소>/dag/runs/`에서 현재 세션의 저장된 DAG checkpoint를 복원하고 task 상세 정보를 연결합니다. viewer 캐시가 비어 있으면 `/dag-pane`에서도 같은 복구를 수행하며 task를 다시 실행하지 않습니다. 다른 세션의 checkpoint는 표시하지 않습니다. 파일을 새로 설치해도 실행 중인 OmO에 이미 로딩된 코드는 바뀌지 않으므로, 복구 기능을 사용하기 전에 확장을 재로딩해야 합니다.
+
 ![OmO에서 /dag-pane을 입력했을 때 현재 세션의 DAG pane을 열거나 다시 여는 명령 설명이 표시되는 화면.](https://raw.githubusercontent.com/jc01rho/omo-herdr-dag/main/docs/screenshots/dag-pane-command.png)
 
 | 위치 | 명령 또는 키 | 동작 |
@@ -104,7 +111,14 @@ OmO에서 `/dag-pane`을 입력하면 workflow 시작 전에 viewer를 미리 �
 | DAG pane | `↑` / `↓`, `k` / `j` | 스크롤합니다. |
 | DAG pane | `Page Up` / `Page Down` | 한 페이지씩 스크롤합니다. |
 | DAG pane | `←` / `→` | 여러 실행 사이를 전환합니다. |
+| DAG pane | `t` | DAG와 일반 작업 목록을 전환합니다. DAG가 없으면 일반 작업이 기본 화면입니다. |
+| DAG pane | `Tab` / `n`, `Shift+Tab` / `p` | 다음·이전 노드를 선택하고 해당 상세 정보로 이동합니다. |
+| DAG pane | `Space` / `Enter` | 선택한 노드의 상세 정보와 자식 작업을 접거나 펼칩니다. |
 | DAG pane | `q`, `Ctrl+C`, `Ctrl+D` | viewer와 자동 생성된 pane을 닫습니다. |
+
+`>`는 선택된 노드, `[-]`는 펼친 상태, `[+]`는 접은 상태입니다. 그래프와 의존 관계 목록은 상세 패널 위에 유지됩니다. 표시 상태는 `<snapshot 경로>.view.json`에 저장하며, workflow 갱신이 이 viewer 전용 파일을 덮어쓰지 않습니다.
+
+일반 작업에서도 같은 선택·접기 키를 사용합니다. 실행 중인 작업을 먼저 표시하고, 일반 작업의 펼침 상태는 task ID별로 DAG 노드와 구분하여 저장합니다. DAG 화면에서도 일반 작업 개수를 확인할 수 있습니다.
 
 OmO 세션이 종료되면 마지막 그래프를 유지하고, 연결 종료 표시 아래에 닫아도 된다는 안내를 표시합니다. 한국어 선택 시에는 다음과 같습니다.
 
@@ -120,10 +134,11 @@ q를 눌러 닫아도 됩니다.
 | 환경 변수 | 기본값 | 용도 |
 | --- | --- | --- |
 | `OMO_HERDR_DAG_STATE_DIR` | `~/.omo/agent/herdr-dag/` | snapshot과 pane 기록의 저장 위치. OmO 시작 전에 설정합니다. |
+| `OMO_HERDR_DAG_TASK_STATE_DIR` | `<프로젝트>/.omo/senpi-task/` | `tasks/`를 포함하는 OmO task 저장소 경로. OmO의 `task.state_dir`을 변경했다면 같은 경로로 지정합니다. |
 | `OMO_HERDR_DAG_LANG` | 설치 시 저장한 언어, 최초 `en` | `en` 또는 `ko`로 인터페이스 언어를 덮어씁니다. OmO 시작 또는 확장 재로딩 전에 설정합니다. |
 | `OMO_HERDR_DAG_NODE` | 검증한 호스트 Node, 없으면 `PATH`의 `node` | Viewer를 실행할 Node.js 24+ 실행 파일. OmO 시작 전에 설정하며 공백이 있는 경로도 지원합니다. |
 
-`install --lang ko`로 선택한 언어는 설치본의 `integration/locale.json`에 저장됩니다. 다른 `--lang` 값을 지정하지 않으면 업데이트 때도 유지합니다. 영어로 되돌리려면 `install --lang en`을 실행하세요. 환경 변수 설정이 저장된 언어보다 우선하며, 지원하지 않는 환경 변수 값은 영어로 처리합니다.
+`install --lang ko`로 선택한 언어는 현재 설치 세대의 `locale.json`에 저장됩니다. 설치 결과의 `integration`이 해당 경로이며, `integration/current.json`에 현재 세대가 기록됩니다. 다른 `--lang` 값을 지정하지 않으면 업데이트 때도 유지합니다. 영어로 되돌리려면 `install --lang en`을 실행하세요. 환경 변수 설정이 저장된 언어보다 우선하며, 지원하지 않는 환경 변수 값은 영어로 처리합니다.
 
 Herdr는 각 pane에 `HERDR_ENV`, `HERDR_PANE_ID`, `HERDR_SOCKET_PATH`를 제공합니다. 이 환경 밖에서는 확장이 비활성 상태를 유지합니다. 다른 pane을 대상으로 삼기 위해 이 변수들을 수동으로 설정하지 마세요.
 
@@ -131,9 +146,15 @@ Herdr는 각 pane에 `HERDR_ENV`, `HERDR_PANE_ID`, `HERDR_SOCKET_PATH`를 제공
 
 Snapshot은 로컬 JSON 파일입니다. 세션·실행 ID, 이름, 노드 이름과 상태, task ID, 의존 관계, 오류 메시지를 저장합니다. Workflow 프롬프트는 제외하지만 이름이나 오류에 프로젝트 정보가 포함될 수 있습니다. 런타임 파일을 공개 이슈나 소스 저장소에 포함하지 마세요. 확장은 별도 외부 네트워크 서비스나 텔레메트리를 추가하지 않습니다.
 
+작업 상세 정보는 노드의 task ID로 연결합니다. 제공되는 작업 설명, 에이전트·모델 정보, 진행 문구, 시각과 카운터를 실제로 연결된 자식 작업과 함께 표시합니다. 없는 정보는 추정하지 않습니다. 자식 작업 관계와 workflow 의존 관계는 별개이며, 의존 관계를 부모·자식 관계로 바꾸어 표시하지 않습니다.
+
+진행 문구는 OmO가 제공하는 최신 응답 일부와 현재 도구 정보이며, 전체 대화 기록이 아닙니다. 저장할 때 진행 문구는 최대 512자, 작업 설명은 최대 2,000자로 제한하고 상세 패널에서 줄바꿈하여 표시합니다. 전체 task 프롬프트, 출력, 최종 응답은 이 snapshot에 복사하지 않습니다.
+
+상세 정보는 기본으로 펼쳐집니다. 사용자가 접거나 펼친 상태는 workflow snapshot과 별도 파일에 저장하며, 세션 안에서 실행 ID와 노드 ID로 구분합니다. 상태 갱신, task 재시도, 실행 전환, viewer 재실행 후에도 선택이 유지되고, 새 노드는 펼친 상태로 시작합니다. 작업 설명과 진행 문구에도 프로젝트 정보가 포함될 수 있으므로 로컬 기록을 공개하지 마세요.
+
 ## 업데이트와 제거
 
-업데이트하려면 `npx omo-herdr-dag@latest install`을 다시 실행하면 업데이트됩니다. 소스로 설치했다면 새 소스를 받은 뒤 설치 프로그램을 다시 실행하세요. 기존 integration 디렉터리는 백업하고 런타임 기록과 언어 선택은 유지합니다. 설치본은 원본 소스 디렉터리나 npm 캐시와 독립적으로 동작합니다. 이미 실행 중인 OmO 세션에서는 `/reload`를 실행하세요.
+업데이트하려면 `npx omo-herdr-dag@latest install`을 다시 실행하면 업데이트됩니다. 소스로 설치했다면 새 소스를 받은 뒤 설치 프로그램을 다시 실행하세요. 매 설치마다 새 세대 디렉터리를 만들어 `/reload`가 캐시된 이전 내부 모듈 대신 새 코드를 읽게 합니다. 이전 세대는 백업으로 유지하고, 구형 단일 디렉터리 설치본은 백업 경로로 이동합니다. 런타임 기록과 언어 선택은 유지합니다. 설치본은 원본 소스 디렉터리나 npm 캐시와 독립적으로 동작합니다. 이미 실행 중인 OmO 세션에서는 `/reload`를 실행하세요. UI 변경을 적용하려면 기존 viewer 프로세스도 다시 실행해야 합니다.
 
 제거하려면 `~/.omo/agent/extensions/herdr-dag.js`를 삭제하고 OmO를 재로딩하거나 재시작하세요. 기존 DAG pane은 직접 닫아 주세요. `~/.omo/agent/herdr-dag/`는 기록으로 보관하거나 별도로 삭제할 수 있습니다. 다른 에이전트 디렉터리에 설치했다면 해당 디렉터리의 진입점을 제거하세요.
 
@@ -163,7 +184,7 @@ Herdr가 제공하는 `HERDR_ENV=1`과 값이 있는 `HERDR_PANE_ID`, `HERDR_SOC
 | 증상 | 확인 사항 |
 | --- | --- |
 | `/dag-pane` 명령이 없습니다. | OmO를 재로딩하고 실제 사용하는 에이전트 디렉터리에 설치했는지, Herdr 안에서 실행 중인지 확인하세요. |
-| Pane이 자동으로 열리지 않습니다. | 이 확장은 **workflow DAG**를 표시합니다. 일반 task나 `parallel()` 호출이 항상 필요한 이벤트를 만드는 것은 아닙니다. OmO 버전도 확인하세요. |
+| Pane이 자동으로 열리지 않습니다. | workflow DAG 또는 현재 세션의 OmO task가 있으면 열립니다. OmO task 기록을 만들지 않는 일반 `parallel()` 호출은 표시 대상이 아닙니다. OmO 버전과 사용자 지정 task 저장소 경로를 확인하고, 직접 닫은 pane은 `/dag-pane`으로 다시 여세요. |
 | 닫은 pane이 다시 열리지 않습니다. | 의도한 동작입니다. `/dag-pane`으로 다시 여세요. |
 | `omob`에서 `Unknown options: --state, --close-pane`이 나옵니다. | 확장을 업데이트하고 실패한 DAG pane을 닫은 뒤, OmO에서 `/reload`, `/dag-pane`을 순서대로 실행하세요. 이전 실행 코드가 컴파일된 OmO 바이너리를 Node로 잘못 사용하던 문제입니다. |
 | `DAG pane:` 경고가 나옵니다. | `PATH`에서 `herdr`를 찾을 수 있는지, `pane split`, `get`, `rename`, `run`을 지원하는지 확인하세요. 실행 실패나 응답 유실 시 중복 생성을 막기 위해 자동 재시도를 중지합니다. 생성 중이던 viewer pane을 확인하고 닫은 뒤 재시도하세요. |
@@ -173,11 +194,15 @@ Herdr가 제공하는 `HERDR_ENV=1`과 값이 있는 `HERDR_PANE_ID`, `HERDR_SOC
 
 ```text
 OmO workflow snapshot: omo.dag.updated
+OmO task 진행 정보: omo.task.updated + 로컬 task 기록
+시작 시 복구: 현재 세션의 DAG checkpoint
     → Senpi 공유 이벤트 버스: senpi:extension-rpc-event
     → 현재 부모 세션 ID로 필터링
     → 정규화한 로컬 snapshot 저장
     → Herdr pane 생성/재사용; TUI가 snapshot 파일 변경 감시
 ```
+
+일반 subtask는 임의의 의존 관계 노드를 만들지 않고 별도 작업 목록에 표시합니다. 표시 중인 DAG에 이미 연결된 task는 일반 목록에서 제외하며, 자식 작업은 소유 task 아래에 표시합니다. 현재 세션의 작업과 명시적으로 연결된 자손만 수집합니다.
 
 확장은 설치된 Senpi의 이벤트 버스를 구독합니다. Viewer를 만들 때 `herdr pane split --ratio 0.65 --no-focus`, `rename`, `run`을 사용합니다. Herdr의 비율은 기존 pane 기준이므로 새 pane에는 약 35%가 할당됩니다.
 

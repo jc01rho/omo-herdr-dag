@@ -1,24 +1,30 @@
 import { createHash } from 'node:crypto';
+import { readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { readJson, writeJson } from './storage.mjs';
 import { quote } from './herdr.mjs';
-import { sessionRuns } from './model.mjs';
+import { normalizeRun, sessionRuns } from './model.mjs';
 import { t, languageOf } from './i18n.mjs';
+import { TaskData } from './task-data.mjs';
 
 export function viewKey(socket, pane, session) {
   return createHash('sha256').update(JSON.stringify([socket, pane, session])).digest('hex').slice(0, 24);
 }
 
 export class DagPane {
-  constructor({ sessionId, parentPane, socket, stateDir, cwd, node, viewer, herdr, notify = () => {}, language = 'en' }) {
+  constructor({ sessionId, parentPane, socket, stateDir, cwd, node, viewer, herdr, notify = () => {}, language = 'en', taskStateDir }) {
     Object.assign(this, { sessionId, parentPane, cwd, node, viewer, herdr, notify });
     this.language = languageOf(language);
     this.key = viewKey(socket, parentPane, sessionId);
     this.stateFile = join(stateDir, `${this.key}.json`);
     this.recordFile = join(stateDir, `${this.key}.pane.json`);
+    this.checkpointDir = join(taskStateDir ?? join(cwd, '.omo', 'senpi-task'), 'dag', 'runs');
     this.queue = Promise.resolve();
     this.runs = [];
     this.stopped = false;
+    this.tasks = [];
+    this.taskData = new TaskData({ cwd, sessionId, stateDir: taskStateDir, notify,
+      onChange: () => { if (!this.stopped) this.enqueue(() => this.save(true)); } });
   }
 
   enqueue(job) {
@@ -31,20 +37,71 @@ export class DagPane {
     const runs = sessionRuns(payload, this.sessionId, this.language);
     if (runs === null || this.stopped) return Promise.resolve();
     return this.enqueue(async () => {
-      this.runs = runs;
+      // RPC replaces transient runs; durable runs omitted by a snapshot remain recoverable.
+      await this.restoreRuns(runs, true);
       await this.save(true);
-      if (runs.length) await this.ensure(false);
     });
   }
 
-  save(connected) {
-    return writeJson(this.stateFile, { version: 1, sessionId: this.sessionId, connected, language: this.language,
-      updatedAt: new Date().toISOString(), runs: this.runs });
+  start() {
+    return this.enqueue(async () => {
+      const state = await readJson(this.stateFile);
+      if (state?.sessionId === this.sessionId) {
+        this.runs = state.runs ?? [];
+        this.taskData.restore(state.tasks);
+      }
+      this.taskData.start();
+      await this.restoreRuns();
+      await this.save(true);
+    });
+  }
+
+  receiveTasks(payload) {
+    if (this.stopped) return Promise.resolve();
+    return this.enqueue(async () => {
+      await this.taskData.refresh(this.runs);
+      if (this.taskData.receive(payload)) await this.save(true);
+    });
+  }
+
+  async restoreRuns(runs = this.runs, preferLive = false) {
+    let files;
+    try { files = await readdir(this.checkpointDir); }
+    catch (error) { if (error.code !== 'ENOENT') throw error; files = []; }
+    const restored = new Map(runs.map(run => [run.id, run]));
+    for (const file of files.filter(file => file.endsWith('.json'))) {
+      try {
+        const raw = await readJson(join(this.checkpointDir, file));
+        if (raw === null) continue; // A checkpoint may disappear after readdir.
+        if (typeof raw.parentSessionId !== 'string' || raw.schemaVersion !== 1) throw new Error('Invalid checkpoint header');
+        if (raw.parentSessionId !== this.sessionId) continue;
+        const run = normalizeRun(raw);
+        if (!run) throw new Error('Invalid checkpoint run');
+        // Startup/open distrust cached state; an incoming RPC may be ahead of disk.
+        if (!preferLive || !restored.has(run.id)) restored.set(run.id, run);
+      } catch (error) { this.notify(`DAG pane: Cannot read checkpoint ${file}: ${error.message}`); }
+    }
+    this.runs = [...restored.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
+  async save(connected) {
+    this.tasks = await this.taskData.refresh(this.runs);
+    await writeJson(this.stateFile, { version: 1, sessionId: this.sessionId, connected, language: this.language,
+      updatedAt: new Date().toISOString(), runs: this.runs, tasks: this.tasks });
+    // All callers serialize saves through the queue, including task-only disk changes.
+    if (connected && !this.stopped && (this.runs.length || this.tasks.length)) await this.ensure(false);
   }
 
   open() {
     return this.enqueue(async () => {
-      if (!this.runs.length) this.runs = (await readJson(this.stateFile))?.runs ?? [];
+      if (!this.runs.length) {
+        const state = await readJson(this.stateFile);
+        if (state?.sessionId === this.sessionId) {
+          this.runs = state.runs ?? [];
+          this.taskData.restore(state.tasks);
+        }
+      }
+      await this.restoreRuns();
       await this.save(true);
       return this.ensure(true);
     });
@@ -83,6 +140,7 @@ export class DagPane {
 
   stop() {
     this.stopped = true;
+    this.taskData.stop();
     return this.enqueue(() => this.save(false));
   }
 }

@@ -14,6 +14,8 @@ npm run test:package
 
 The deterministic tests cover snapshot normalization, session isolation, pane reuse, failure handling, graph layout, scrolling, and terminal display widths. They do not require OmO or Herdr. Add behavior tests for fixes that affect these contracts.
 
+The interactive viewer test also requires Python 3 and a Unix PTY. It uses Python's standard library to drive the real Node viewer and waits for rendered frames rather than fixed delays. This is a test-only requirement; the installed extension and viewer still require only Node. The test covers node selection, default expansion, collapse/expand, state updates, resizing, and preference persistence across restarts.
+
 The build assembles `dist/` and checks JavaScript syntax. The package check installs the real npm tarball offline into a temporary project and verifies the public CLI. `npm run check` runs the complete local pipeline. Generated files in `dist/` and `.artifacts/` should not be committed.
 
 English is the default interface language. Keep English and Korean entries in `src/i18n.mjs` complete, and preserve workflow-provided labels in their original language. Test both the fresh-install default and explicit `--lang ko` selection.
@@ -68,6 +70,8 @@ For release compatibility claims, also test a real OmO workflow on an unmodified
 - `src/controller.mjs`: Serialize updates and manage session-specific pane records.
 - `src/herdr.mjs`: Call the Herdr pane CLI with explicit targets.
 - `src/storage.mjs`: Replace local JSON state atomically.
+- `src/task-data.mjs`: Read OmO task records and progress events, retaining only DAG-linked tasks and their explicit descendants.
+- `src/view-state.mjs`: Persist session/run/node expansion preferences separately from workflow snapshots.
 - `src/render.mjs` and `src/viewer.mjs`: Terminal layout, file watching, and keyboard controls.
 - `scripts/install.mjs`: Install a standalone copy in the OmO agent directory.
 - `src/i18n.mjs`: English and Korean interface messages.

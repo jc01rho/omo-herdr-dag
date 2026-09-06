@@ -22,14 +22,20 @@ This record separates observed behavior from integration assumptions. The baseli
 
 The live check used the actual Senpi loader and `pi.rpc.emit()` with an explicitly labeled **synthetic DAG snapshot**. It did not execute model workers or a real workflow. Unit tests used mocked pane commands; these are not evidence of stock Herdr compatibility.
 
+## Version 1.1.0 verification
+
+On 2026-09-06, Linux x86_64 with Node 24.14.0 passed 65 tests with the optional real Bun/Senpi loader check enabled, followed by the build and offline npm package smoke check. Coverage includes standalone subtasks, default-expanded details, persistent per-task and per-node preferences, checkpoint recovery, terminal-state metadata, and generation-isolated installation. The real loader regression verifies changed transitive modules after reinstalling within the same Bun process.
+
+In the active Herdr session, the updated extension recovered a saved completed DAG with four nodes and their task details. Ten current-session tasks were collected, including six ordinary tasks outside that DAG. The live viewer displayed the linked task ID, description, agent/model, duration and counters; switching between DAG and Tasks, collapsing a standalone task, checking its persisted preference, and expanding it again were exercised. This verified recovery of an existing real workflow, not a fresh end-to-end workflow or nested-child launch.
+
 ## Current limits
 
-The current source also passes 20 behavior tests, including English-default and Korean rendering, Node runtime selection, and a real Node executable probe, plus a local npm distribution build. The package smoke check installs the actual tarball offline and verifies CLI execution, language selection and persistence, installer dry-run, extension imports, updates, and the MIT notice. These checks do not replace the live compatibility limits below.
+The earlier release baseline passed 20 behavior tests. Version 1.1.0 extends that coverage as described above. The package smoke check installs the actual tarball offline and verifies CLI execution, language selection and persistence, installer dry-run, extension imports, updates, and the MIT notice. These checks do not replace the live compatibility limits below.
 
 The standalone `omob` launcher issue was fixed by resolving and probing a separate Node.js 24+ runtime instead of using the compiled OmO executable as an interpreter. Regression checks cover a compiled host path, normal Node hosts, explicit overrides, unsupported runtimes, and failure before pane creation. After installing the fix, the viewer rendered the reported state using `--once` with a simulated compiled-host executable path and the real Node 24.14.0 fallback. The installed Senpi loader and RPC bus checks also passed. These checks did not restart the active `omob` session or verify its compiled extension loader end to end.
 
 - **Unmodified Herdr without custom OmO registration:** the implementation only uses ordinary pane commands and does not require agent recognition. A clean installation has not yet been tested end to end.
-- **Real workflow production path:** the OmO event producer was inspected, and synthetic events were verified through the native bus. A complete real-workflow smoke test remains to be recorded.
+- **Real workflow production path:** existing-workflow recovery and live task detail display were verified for 1.1.0. A fresh complete workflow and live progress from newly launched nested children remain unverified end to end.
 - **Native macOS and Windows:** unverified. All observed execution environments above were Linux.
 - **Other OmO/Senpi versions:** unverified. Internal event contracts may change; the current source-level verifier is specific to the inspected beta.42 bundle.
 - **CI:** a Linux matrix for Node 24 and 26 runs tests, builds, npm package checks, and artifact upload. Hosted CI and the release workflow's manual npm dry run have passed in the public repository; actual npm publication requires separate authentication.

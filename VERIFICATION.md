@@ -28,6 +28,14 @@ On 2026-09-06, Linux x86_64 with Node 24.14.0 passed 65 tests with the optional 
 
 In the active Herdr session, the updated extension recovered a saved completed DAG with four nodes and their task details. Ten current-session tasks were collected, including six ordinary tasks outside that DAG. The live viewer displayed the linked task ID, description, agent/model, duration and counters; switching between DAG and Tasks, collapsing a standalone task, checking its persisted preference, and expanding it again were exercised. This verified recovery of an existing real workflow, not a fresh end-to-end workflow or nested-child launch.
 
+## Windows local verification (2026-09-06)
+
+Windows 11 x64 (build 26200), Node 26.7.0, npm 12.0.2, Windows PowerShell 5.1, and Herdr 0.8.2 passed 72 tests with no skips, the syntax-checking build, and offline npm package installation/CLI checks. Windows tests use a real ConPTY bridge for keyboard input, resize, snapshot refresh, preference persistence, and the elapsed clock. PowerShell regression tests execute the controller's actual command with spaces and apostrophes in paths; a Bash subprocess also verifies the unchanged POSIX quoting contract.
+
+The installed viewer recovered an actual completed three-node workflow created by OmO beta.43 / Senpi 2026.9.5. A dedicated Herdr pane displayed both start nodes, their merge into the verification node, all three completed states, both explicit dependency edges, and Korean task details. The original pane retained focus (98 columns, viewer 52 columns). Space collapsed a node and Enter expanded it through Herdr's real input API. The dedicated verifier shut down its controller, so the viewer correctly retained a disconnected snapshot. No new model workflow was launched for this check.
+
+The active installed runtime was byte-compared with the source. Installation selects the active agent-directory environment variables rather than always writing under `~/.omo/agent`. Existing OmO sessions still require `/reload`; close any old failed viewer and use `/dag-pane` to reopen. The optional standalone installed-Senpi loader verifier timed out while importing Senpi, under both Node and Bun; that Windows loader check is **not verified**. Language-server initialization lacked TypeScript, so JavaScript syntax checks covered all 30 source, script, and test modules instead.
+
 ## Current limits
 
 The earlier release baseline passed 20 behavior tests. Version 1.1.0 extends that coverage as described above. The package smoke check installs the actual tarball offline and verifies CLI execution, language selection and persistence, installer dry-run, extension imports, updates, and the MIT notice. These checks do not replace the live compatibility limits below.
@@ -36,7 +44,7 @@ The standalone `omob` launcher issue was fixed by resolving and probing a separa
 
 - **Unmodified Herdr without custom OmO registration:** the implementation only uses ordinary pane commands and does not require agent recognition. A clean installation has not yet been tested end to end.
 - **Real workflow production path:** existing-workflow recovery and live task detail display were verified for 1.1.0. A fresh complete workflow and live progress from newly launched nested children remain unverified end to end.
-- **Native macOS and Windows:** unverified. All observed execution environments above were Linux.
+- **Native macOS:** unverified. Windows coverage is limited to the local PowerShell/Herdr environment described above; Windows panes using cmd.exe or Git Bash are not supported by the Windows command builder.
 - **Other OmO/Senpi versions:** unverified. Internal event contracts may change; the current source-level verifier is specific to the inspected beta.42 bundle.
 - **CI:** a Linux matrix for Node 24 and 26 runs tests, builds, npm package checks, and artifact upload. Hosted CI and the release workflow's manual npm dry run have passed in the public repository; actual npm publication requires separate authentication.
 - **Interface language:** English is now the default. Korean is selectable through `install --lang ko` or `OMO_HERDR_DAG_LANG=ko`. Both English and Korean README files are provided. The earlier live-pane baseline above used the original Korean interface.

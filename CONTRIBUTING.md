@@ -4,7 +4,7 @@ Bug reports and pull requests are welcome. Keep changes focused, describe the be
 
 ## Local development
 
-Use Node 24 or later. There are no npm dependencies to install.
+Use Node 24 or later. The installed product has no npm dependencies. Run `npm ci --ignore-scripts` to obtain the development-only Windows PTY bridge (its Windows prebuild is included).
 
 ```bash
 npm test
@@ -14,7 +14,7 @@ npm run test:package
 
 The deterministic tests cover snapshot normalization, session isolation, pane reuse, failure handling, graph layout, scrolling, and terminal display widths. They do not require OmO or Herdr. Add behavior tests for fixes that affect these contracts.
 
-The interactive viewer test also requires Python 3 and a Unix PTY. It uses Python's standard library to drive the real Node viewer and waits for rendered frames rather than fixed delays. This is a test-only requirement; the installed extension and viewer still require only Node. The test covers node selection, default expansion, collapse/expand, state updates, resizing, and preference persistence across restarts.
+On POSIX, the interactive viewer test requires Python 3 and a Unix PTY. On Windows it uses `node-pty` with real ConPTY input and resize events, tapping the viewer's complete output frames before ConPTY converts them into differential terminal updates. Both bridges wait for frame predicates rather than fixed delays. These are test-only requirements; the installed extension and viewer still require only Node. The test covers node selection, default expansion, collapse/expand, state updates, resizing, and preference persistence across restarts. Windows store tests use privilege-free hard links; POSIX also tests symbolic links.
 
 The build assembles `dist/` and checks JavaScript syntax. The package check installs the real npm tarball offline into a temporary project and verifies the public CLI. `npm run check` runs the complete local pipeline. Generated files in `dist/` and `.artifacts/` should not be committed.
 

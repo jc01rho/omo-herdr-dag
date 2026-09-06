@@ -36,7 +36,7 @@
 
 **이 확장은 Herdr에 OmO를 커스텀 에이전트로 등록할 필요가 없습니다.** Herdr의 일반 터미널 pane에서 `omo`를 직접 실행하면 됩니다. 확장은 pane ID와 일반 `herdr pane` 명령을 사용하며, `herdr agent start`나 사이드바의 에이전트 인식에 의존하지 않습니다.
 
-구조상 이 방식으로 사용할 수 있지만, **커스텀 설정이 없는 순정 Herdr에서의 전체 동작은 아직 검증하지 않았습니다.** 정확한 확인 범위는 [검증 및 호환성 기록](VERIFICATION.md)을 참고하세요. 네이티브 macOS와 Windows 지원도 아직 검증하지 않았습니다.
+구조상 이 방식으로 사용할 수 있지만, **커스텀 설정이 없는 순정 Herdr에서의 전체 동작은 아직 검증하지 않았습니다.** 정확한 확인 범위는 [검증 및 호환성 기록](VERIFICATION.md)을 참고하세요. Windows PowerShell에서 viewer 실행과 실제 저장된 workflow 표시는 로컬 검증했습니다. 네이티브 macOS는 아직 검증하지 않았습니다. Windows pane의 셸은 cmd.exe나 Git Bash가 아닌 PowerShell을 전제로 합니다.
 
 ## 설치
 
@@ -66,14 +66,15 @@ npx omo-herdr-dag@latest install --lang ko
 ```bash
 git clone https://github.com/jc01rho/omo-herdr-dag.git
 cd omo-herdr-dag
+npm ci --ignore-scripts
 npm test
 node scripts/install.mjs --dry-run
 node scripts/install.mjs
 ```
 
-npm 의존성은 없습니다. `--dry-run`은 파일을 변경하지 않고 설치 위치만 출력합니다. 소스 설치 프로그램에서도 `--lang en` 또는 `--lang ko`를 사용할 수 있습니다.
+런타임 npm 의존성은 없습니다. Windows 테스트는 개발 전용 `node-pty` ConPTY 브리지를 사용하며, POSIX 테스트에는 Python 3와 Unix PTY가 필요합니다. `--dry-run`은 파일을 변경하지 않고 설치 위치만 출력합니다. 소스 설치 프로그램에서도 `--lang en` 또는 `--lang ko`를 사용할 수 있습니다.
 
-설치되는 파일은 다음과 같습니다.
+설치 위치는 `--agent-dir`, `OMO_CODING_AGENT_DIR`, `SENPI_CODING_AGENT_DIR` 순으로 선택하며, 모두 없으면 `~/.omo/agent`를 사용합니다. 예를 들어 `OMO_CODING_AGENT_DIR=~/.omo`이면 진입점은 `~/.omo/extensions/herdr-dag.js`입니다. 기본 대체 경로의 구조는 다음과 같습니다.
 
 ```text
 ~/.omo/agent/

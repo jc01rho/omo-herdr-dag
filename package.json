@@ -20,5 +20,6 @@
     "prepack": "npm run build",
     "prepublishOnly": "npm test && npm run build && npm run test:package"
   },
-  "engines": { "node": ">=24" }
+  "engines": { "node": ">=24" },
+  "devDependencies": { "node-pty": "1.1.0" }
 }

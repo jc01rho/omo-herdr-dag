@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
+import { link, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { TaskData, normalizeTask } from '../src/task-data.mjs';
@@ -200,9 +200,11 @@ test('project store selects all own-session roots and verified session descendan
     save(record('st_unrelated')),
     save(record('st_foreign', { parent_session_id: 'foreign' })),
   ]);
-  // The store accepts .json symlink entries; discovery must not silently drop them.
+  // Windows hard links need no elevated symlink privilege; POSIX also exercises
+  // symlink discovery, which must not silently drop linked .json entries.
   await writeJson(join(stateDir, 'linked-record'), record('st_link', { parent_session_id: 'child-session' }));
-  await symlink('../linked-record', join(stateDir, 'tasks', 'st_link.json'));
+  if (process.platform === 'win32') await link(join(stateDir, 'linked-record'), join(stateDir, 'tasks', 'st_link.json'));
+  else await symlink('../linked-record', join(stateDir, 'tasks', 'st_link.json'));
   const tasks = await data.refresh(runs);
   assert.deepEqual(tasks.map(task => task.id).sort(), ['st_child', 'st_grand', 'st_link', 'st_next', 'st_root', 'st_unrelated']);
   assert.equal(tasks.find(task => task.id === 'st_child').parentTaskId, 'st_root');

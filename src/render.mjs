@@ -180,10 +180,11 @@ function descendantLines(task, tasks, language, timing, columns) {
   return descendants;
 }
 
-function detailBox(text, columns, color, selected) {
+function detailBox(text, columns, color, selected, label) {
   const inner = Math.max(1, columns - 4);
   const border = selected ? palette.accent : palette.muted;
-  return [paint(`╭${'─'.repeat(Math.max(0, columns - 2))}╮`, border, color),
+  const title = label !== undefined && columns >= 7 ? `─ ${fit(label, columns - 6)} ` : '';
+  return [paint(`╭${title}${'─'.repeat(Math.max(0, columns - 2 - width(title)))}╮`, border, color),
     ...text.flatMap((line, index) => wrap(line, inner).map(part =>
       `${paint('│', border, color)} ${paint(fit(part, inner, true), index === 0 && selected ? palette.accent : palette.text, color)} ${paint('│', border, color)}`)),
     paint(`╰${'─'.repeat(Math.max(0, columns - 2))}╯`, border, color)];
@@ -195,7 +196,7 @@ function taskCard(task, tasks, columns, color, language, timing, { selected, exp
   const text = detailed ? [compact[0], ...(node ? [`${clean(node.label)} (${clean(node.id)})`, `${icons[node.state]} ${t(language, node.state)}`] : []),
     ...taskLines(task, language, timing, node?.state)] : expanded ? compact : compact.slice(0, 1);
   if (expanded || detailed) text.push(...descendantLines(task, tasks, language, timing, columns));
-  return detailBox(text, columns, color, selected);
+  return detailBox(text, columns, color, selected, node?.label ?? node?.id);
 }
 
 export function renderFrame(state, { columns = 54, rows = 48, runIndex = 0, scroll = 0, color = true, error = '', language = state?.language ?? 'en',

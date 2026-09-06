@@ -120,6 +120,8 @@ On startup, the extension also restores the current session's saved DAG checkpoi
 
 `>` marks the selected node, `[-]` means expanded, and `[+]` means collapsed. The graph and dependency list remain above the detail panels. Preferences live in `<snapshot path>.view.json`; this viewer-owned file is not overwritten by workflow updates.
 
+DAG detail cards show the graph's node label in their top border, even when folded, without adding a row. Long labels are clipped to the pane width; `d` shows the full label and node ID.
+
 The same selection and collapse keys work in Tasks. Running tasks appear first, and ordinary task preferences are stored by task ID separately from DAG node preferences. The task count remains visible from the DAG view.
 
 Expanded task cards default to four compact lines: status and task description, agent and short model name, one line of progress, and elapsed time with turn/tool counts. Long progress is clipped in this view. Press `d` for the task ID, exact timestamps, full model name and the supplied progress text; press it again to return to the compact card. Full-detail viewing is temporary and does not replace the saved expand/collapse setting.

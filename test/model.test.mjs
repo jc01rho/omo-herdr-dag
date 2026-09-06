@@ -104,7 +104,9 @@ test('compact cards share four safe lines, localized counts, selected-only detai
   for (const range of Object.values(freshDag.nodeRanges)) assert.equal(range.end - range.start, 3);
   assert.doesNotMatch(freshDag.text, /PROGRESS_HEAD|CHILD_DESCRIPTION/);
   const dag = renderFrame(state, { ...options, selectedNodeId: 'node' });
-  assert.deepEqual(card(dag, 'node', 'nodeRanges'), lines);
+  const dagCard = card(dag, 'node', 'nodeRanges');
+  assert.ok(dagCard[0].startsWith('╭─ GRAPH_LABEL '));
+  assert.deepEqual(dagCard.slice(1), lines.slice(1));
   assert.match(dag.text, /node → missing/);
   const missing = card(dag, 'missing', 'nodeRanges');
   assert.equal(missing.length, 6);
@@ -115,6 +117,36 @@ test('compact cards share four safe lines, localized counts, selected-only detai
     assert.ok(narrow.text.split('\n').every(line => width(line) < columns));
     assert.equal(card(narrow, 'node', 'nodeRanges').length, 10);
   }
+});
+
+test('DAG detail borders identify their node without changing card height or standalone borders', () => {
+  const label = '검증-node🙂'.repeat(8);
+  const node = { id: 'node-id', label, state: 'running', taskId: 'task' };
+  const state = { connected: true, runs: [{ id: 'run', name: 'Run', status: 'running', nodes: [node], edges: [] }],
+    tasks: [{ id: 'task', description: 'Work' }, { id: 'standalone', description: 'Other work' }] };
+  for (const columns of [8, 20, 35, 54, 100]) for (const expanded of [false, true]) {
+    const viewState = emptyViewState('session');
+    setExpanded(viewState, 'run', node.id, expanded);
+    const options = { columns, rows: 100, color: false, viewState, selectedNodeId: node.id };
+    const frame = renderFrame(state, options);
+    const range = frame.nodeRanges[node.id];
+    const card = frame.text.split('\n').slice(3 + range.start, 3 + range.end);
+    assert.equal(card.length, expanded ? 6 : 3);
+    assert.ok(card[0].startsWith(`╭─ ${fit(label, columns - 7)} `));
+    assert.equal(width(card[0]), columns - 1);
+    assert.ok(card[0].endsWith('─╮'));
+    assert.ok(frame.text.split('\n').every(line => width(line) < columns));
+    const colored = render(state, { ...options, color: true });
+    assert.ok(colored.split('\n').every(line => width(line) < columns));
+  }
+  const full = render(state, { columns: 200, rows: 100, color: false, selectedNodeId: node.id, verbose: true });
+  assert.ok(full.includes(`${label} (${node.id})`));
+  node.label = '\x1b]52;c;YQ==\x07safe\x1b[2J\nnode';
+  const cleanFrame = renderFrame(state, { columns: 54, rows: 100, color: false });
+  assert.ok(cleanFrame.text.split('\n')[3 + cleanFrame.nodeRanges[node.id].start].startsWith('╭─ safe node '));
+  assert.ok(!cleanFrame.text.includes('\x1b'));
+  const standalone = renderFrame(state, { columns: 54, rows: 100, color: false, view: 'tasks' });
+  assert.equal(standalone.text.split('\n')[3 + standalone.taskRanges.standalone.start], `╭${'─'.repeat(51)}╮`);
 });
 
 test('automatic card ranges and DAG markers use authoritative status, while booleans and detail remain independent', () => {

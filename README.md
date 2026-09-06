@@ -6,11 +6,11 @@ English | [한국어](README_KO.md)
 
 `omo-herdr-dag` is an [OmO](https://github.com/code-yeongyu/oh-my-openagent) extension that opens a dedicated TUI in [Herdr](https://herdr.dev/) when a workflow DAG appears. Follow dependencies and node states beside your conversation, with focus kept in the original pane.
 
-![OmO running a dinner research workflow on the left, with three running research nodes and a waiting verification node in the Herdr DAG pane on the right.](https://raw.githubusercontent.com/jc01rho/omo-herdr-dag/main/docs/screenshots/workflow-in-progress.png)
+![OmO running an integration review on the left, with navigation, gate-wiring, and test-coverage running and verify-evidence pending in the Herdr DAG pane on the right.](https://raw.githubusercontent.com/jc01rho/omo-herdr-dag/main/docs/screenshots/workflow-in-progress-en.png)
 
-*A workflow in progress: `home`, `order`, and `light` research dinner options in parallel; `verify` depends on all three. The right pane shows their states and lists every dependency while the conversation remains visible on the left.*
+*An integration review in progress: `navigation`, `gate-wiring`, and `test-coverage` run in parallel; `verify-evidence` depends on all three. The right pane shows node states, dependencies, and task details beside the conversation.*
 
-The screenshots show an earlier Korean interface. New installations default to **English**; select Korean with `--lang ko`. Node labels come from your workflow and are displayed unchanged. The current viewer also adds an explicit close hint after disconnection.
+The screenshots show the **English** interface, which is the default for new installations; select Korean with `--lang ko`. Node labels come from your workflow and are displayed unchanged. The viewer also shows an explicit close hint after disconnection.
 
 ## Features
 
@@ -102,7 +102,7 @@ Type `/dag-pane` in OmO to open the viewer before a workflow starts, or to reope
 
 On startup, the extension also restores the current session's saved DAG checkpoints from `<task state directory>/dag/runs/` and joins their task details. If the viewer cache is empty, `/dag-pane` attempts the same recovery without rerunning any tasks. Checkpoints from other sessions are not displayed. Installing new files does not replace code already loaded by a running OmO session: reload the extension before using the recovery.
 
-![The /dag-pane command in OmO, with completion describing how to open or reopen the current session's DAG pane.](https://raw.githubusercontent.com/jc01rho/omo-herdr-dag/main/docs/screenshots/dag-pane-command.png)
+![OmO command completion listing dag-pane with an English description for opening or reopening the current session's DAG pane.](https://raw.githubusercontent.com/jc01rho/omo-herdr-dag/main/docs/screenshots/dag-pane-command-en.png)
 
 | Where | Command or key | Action |
 | --- | --- | --- |

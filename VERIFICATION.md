@@ -42,6 +42,12 @@ The compact-card update passed 72 tests on Linux x86_64 with Node 24.14.0 and th
 
 The active Herdr viewer was updated in place. Its running generation and installed automatic-expansion policy were confirmed, as were compact/full-detail switching and preservation of saved fold preferences. Real business tasks were not modified to manufacture state transitions; transition coverage uses synthetic snapshots through the actual viewer PTY. No new pixel-level visual approval is claimed for this update.
 
+## Version 1.2.0 verification
+
+The Windows PowerShell port and follow-up error-preservation fix passed 80 tests on Linux, the build, and offline package verification. The reviewed PR head also passed GitHub-hosted Node 24 and 26 checks. Independent probes verified POSIX literal argv, Windows command construction, simulated Windows sharing-error retry bounds, previous-snapshot retention, and temporary cleanup. When cleanup itself fails, the original write error remains primary and the cleanup error is exposed as its cause.
+
+Native PowerShell and ConPTY were not rerun by the Linux reviewer; those results remain limited to the contributor's Windows environment described above. Windows development tests require Bash on PATH in addition to the development-only ConPTY bridge. These requirements do not add runtime npm dependencies to the installed viewer. English README screenshots were updated in the same integrated source baseline.
+
 ## Current limits
 
 The earlier release baseline passed 20 behavior tests. Version 1.1.0 extends that coverage as described above. The package smoke check installs the actual tarball offline and verifies CLI execution, language selection and persistence, installer dry-run, extension imports, updates, and the MIT notice. These checks do not replace the live compatibility limits below.

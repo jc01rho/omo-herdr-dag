@@ -15,7 +15,7 @@ let view = state?.runs?.length ? 'dag' : 'tasks', selectedTaskId;
 let scroll = 0, error = '', timer, drawing = false, again = false;
 let viewState = emptyViewState(state?.sessionId), viewError = '', saving = Promise.resolve(), closing = false;
 const selectedNodes = new Map();
-let revealSelection = false;
+let revealSelection = false, verbose = false, detailSelection;
 async function restorePreferences() {
   try { viewState = await loadViewState(file, state?.sessionId); viewError = ''; }
   catch (cause) { viewState = emptyViewState(state?.sessionId); viewError = cause.message; }
@@ -31,9 +31,12 @@ function draw() {
   const roots = standaloneTasks(state);
   if (!roots.some(task => task.id === selectedTaskId)) selectedTaskId = roots[0]?.id;
   if (!run?.nodes.some(node => node.id === selectedNodes.get(selectedId))) selectedNodes.set(selectedId, run?.nodes[0]?.id);
+  const selection = JSON.stringify([state?.sessionId, view, view === 'tasks' ? null : selectedId,
+    view === 'tasks' ? selectedTaskId : selectedNodes.get(selectedId)]);
+  if (selection !== detailSelection) { verbose = false; detailSelection = selection; }
   const result = renderFrame(state, { columns: process.stdout.columns ?? 54, rows: process.stdout.rows ?? 48, runIndex, scroll, color: interactive,
     error, notice: viewError ? t(state?.language, 'viewError', { error: viewError }) : '',
-    selectedNodeId: selectedNodes.get(selectedId), selectedTaskId, view, viewState, revealSelection });
+    selectedNodeId: selectedNodes.get(selectedId), selectedTaskId, view, viewState, verbose, revealSelection });
   scroll = result.scroll;
   const frame = result.text;
   process.stdout.write(interactive ? `\x1b[H${frame.replaceAll('\n', '\x1b[K\r\n')}\x1b[K` : `${frame}\n`);
@@ -122,8 +125,16 @@ process.stdin.on('keypress', (_text, pressed) => {
     else selectedNodes.set(selectedId, nextId);
     revealSelection = true;
   }
+  if (items.length && key === 'd') {
+    // A temporary detail peek never writes or replaces the saved fold state.
+    verbose = !verbose;
+    revealSelection = true;
+  }
   if (items.length && (key === ' ' || key === '\r' || key === '\n')) {
-    setExpanded(viewState, scope, itemId, !isExpanded(viewState, scope, itemId));
+    verbose = false;
+    const item = items.find(item => item.id === itemId);
+    const status = view === 'tasks' ? item.status : item.state;
+    setExpanded(viewState, scope, itemId, !isExpanded(viewState, scope, itemId, status));
     const snapshot = structuredClone(viewState);
     saving = saving.then(() => saveViewState(file, snapshot)).then(() => {
       if (viewError) { viewError = ''; draw(); }

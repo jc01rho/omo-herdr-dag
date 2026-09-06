@@ -17,7 +17,10 @@ export async function loadViewState(stateFile, sessionId) {
 const key = (runId, nodeId) => JSON.stringify([runId, nodeId]);
 // DAG run IDs are strings; null reserves a collision-free, stable task scope.
 export const TASK_SCOPE = null;
-export const isExpanded = (view, runId, nodeId) => view?.expanded?.[key(runId, nodeId)] !== false;
+export function isExpanded(view, runId, nodeId, status) {
+  const saved = view?.expanded?.[key(runId, nodeId)];
+  return typeof saved === 'boolean' ? saved : status === 'running';
+}
 export function setExpanded(view, runId, nodeId, expanded) {
   view.expanded[key(runId, nodeId)] = expanded;
 }

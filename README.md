@@ -19,7 +19,7 @@ The screenshots show an earlier Korean interface. New installations default to *
 - Reuses the session's pane across updates and extension reloads.
 - Keeps completed and failed runs visible after the session ends.
 - Supports scrolling and switching between runs.
-- Shows task details and explicitly linked child tasks, expanded by default.
+- Automatically expands running task details and folds other states unless you saved a different choice.
 - Displays ordinary subtasks from the current session even when no workflow DAG exists.
 - Remembers each node's expanded or collapsed state across updates and viewer restarts.
 - Respects manual closure: use `/dag-pane` to reopen the viewer.
@@ -115,11 +115,14 @@ On startup, the extension also restores the current session's saved DAG checkpoi
 | DAG pane | `t` | Switch between DAG and ordinary Tasks. Without a DAG, Tasks is the default view. |
 | DAG pane | `Tab` / `n`, `Shift+Tab` / `p` | Select the next or previous node and bring its details into view. |
 | DAG pane | `Space` / `Enter` | Collapse or expand the selected node's details, including its child tasks. |
+| DAG pane | `d` | Toggle full details for the selected task or node without changing its saved collapse preference. |
 | DAG pane | `q`, `Ctrl+C`, `Ctrl+D` | Close the viewer and its generated pane. |
 
 `>` marks the selected node, `[-]` means expanded, and `[+]` means collapsed. The graph and dependency list remain above the detail panels. Preferences live in `<snapshot path>.view.json`; this viewer-owned file is not overwritten by workflow updates.
 
 The same selection and collapse keys work in Tasks. Running tasks appear first, and ordinary task preferences are stored by task ID separately from DAG node preferences. The task count remains visible from the DAG view.
+
+Expanded task cards default to four compact lines: status and task description, agent and short model name, one line of progress, and elapsed time with turn/tool counts. Long progress is clipped in this view. Press `d` for the task ID, exact timestamps, full model name and the supplied progress text; press it again to return to the compact card. Full-detail viewing is temporary and does not replace the saved expand/collapse setting.
 
 When the OmO session ends, the last graph remains visible with a disconnected indicator and an explicit close hint:
 
@@ -151,7 +154,7 @@ Task details are linked to workflow nodes by their task IDs. Available task desc
 
 Progress is a selected latest assistant excerpt with the current tool when supplied by OmO, not a transcript. Stored progress is limited to 512 characters and descriptions to 2,000; the detail panels wrap the supplied text. Full task prompts, output, and final responses are not copied into these snapshots.
 
-Details start expanded. Your explicit expanded/collapsed choices are saved separately from workflow snapshots, keyed by run ID and node ID within the session. Status updates, task retries, switching runs, and restarting the viewer preserve those choices; new nodes start expanded. Task descriptions and progress text may also contain project information, so keep these local records private.
+Without a saved choice, running tasks expand automatically and every other state stays folded. Automatically expanded tasks fold when they finish. Your explicit expanded/collapsed choices always take priority: a running task you fold stays folded across updates, and a task you expand stays open after completion. Choices are saved separately from workflow snapshots, keyed by run ID and node ID within the session, and survive retries, run switches and viewer restarts. Automatic state changes are not saved. Space/Enter changes your saved choice; `d` temporarily reveals full details and then returns to the current effective fold state without changing that choice. Task descriptions and progress text may also contain project information, so keep these local records private.
 
 ## Update and uninstall
 

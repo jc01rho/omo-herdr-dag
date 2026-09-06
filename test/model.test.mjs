@@ -6,7 +6,7 @@ import { fit, render, renderFrame, standaloneTasks, width } from '../src/render.
 import { TASK_SCOPE, emptyViewState, setExpanded } from '../src/view-state.mjs';
 import { payload, sessionId } from './fixtures.mjs';
 
-test('standalone tasks are separate from every DAG, default expanded, and expose real metadata and children', () => {
+test('standalone tasks are separate from every DAG, respect explicit folds, and expose real metadata and children', () => {
   const state = { connected: true, runs: [], tasks: [
     { id: 'b', status: 'completed', description: 'FINISHED_SENTINEL' },
     { id: 'a', status: 'running', description: 'ROOT_SENTINEL 한글🙂', category: 'visual-engineering',
@@ -17,19 +17,26 @@ test('standalone tasks are separate from every DAG, default expanded, and expose
   ] };
   const original = structuredClone(state);
   assert.deepEqual(standaloneTasks(state).map(task => task.id), ['a', 'b', 'c']);
-  const options = { rows: 200, columns: 54, color: false, selectedTaskId: 'a', now: Date.parse('2026-09-06T00:01:02Z') };
-  const frame = renderFrame(state, options);
+  const viewState = emptyViewState('session');
+  setExpanded(viewState, TASK_SCOPE, 'a', false);
+  const options = { rows: 200, columns: 54, color: false, viewState, selectedTaskId: 'a', now: Date.parse('2026-09-06T00:01:02Z') };
+  const fresh = renderFrame(state, options);
+  for (const range of Object.values(fresh.taskRanges)) assert.equal(range.end - range.start, 3);
+  assert.doesNotMatch(fresh.text, /LATEST_PROGRESS|CHILD_SENTINEL|REAL_MODEL/);
+  setExpanded(viewState, TASK_SCOPE, 'c', true);
+  const frame = renderFrame(state, { ...options, verbose: true });
   for (const value of ['ROOT_SENTINEL', 'visual-engineering', 'REAL_MODEL', 'LATEST_PROGRESS', '00:01:02',
     'CHILD_SENTINEL', 'GRANDCHILD_SENTINEL', 'ERROR_SENTINEL']) assert.ok(frame.text.includes(value), value);
   assert.ok(frame.taskRanges.a);
   assert.ok(frame.text.includes(`${messages.en.category}: visual-engineering`));
   assert.ok(frame.text.includes(`${messages.en.turns}: 0`));
-  for (const status of ['error', 'interrupted', 'lost']) assert.ok(frame.text.includes(messages.en[status]));
+  for (const token of ['× ERROR_SENTINEL', '− CHILD_SENTINEL', '? GRANDCHILD_SENTINEL']) assert.ok(frame.text.includes(token), token);
+  assert.ok(render(state, { ...options, selectedTaskId: 'c', verbose: true }).includes(messages.en.error));
   assert.ok(!frame.text.includes(messages.en.dependencies));
-  const viewState = emptyViewState('session');
   setExpanded(viewState, TASK_SCOPE, 'a', false);
   const collapsed = render(state, { ...options, viewState });
-  assert.ok(!collapsed.includes('ROOT_SENTINEL'));
+  assert.ok(collapsed.includes('ROOT_SENTINEL'));
+  assert.ok(!collapsed.includes('LATEST_PROGRESS'));
   assert.ok(!collapsed.includes('CHILD_SENTINEL'));
   state.runs = [{ id: 'r1', name: 'ONE', status: 'running', nodes: [{ id: 'n', state: 'running', label: 'NODE', taskId: 'b' }], edges: [] },
     { id: 'r2', name: 'TWO', status: 'running', nodes: [{ id: 'n', state: 'running', label: 'NODE', taskId: 'c' }], edges: [] }];
@@ -46,6 +53,96 @@ test('standalone tasks are separate from every DAG, default expanded, and expose
   for (const columns of [8, 20, 35, 54, 80]) for (const language of ['en', 'ko']) {
     const text = render(state, { ...options, columns, language });
     assert.ok(text.split('\n').every(line => width(line) < columns), `${language}: ${columns}`);
+  }
+});
+
+test('compact cards share four safe lines, localized counts, selected-only detail, and temporary collapse override', () => {
+  const progress = `PROGRESS_HEAD ${'한글🙂 useful work '.repeat(20)} PROGRESS_TAIL`;
+  const state = { connected: true, runs: [], tasks: [
+    { id: 'root-id', status: 'running', description: '\x1b[31mROOT_DESCRIPTION\x1b[0m', agent: 'worker', category: 'visual',
+      model: 'opencodex/gpt-5.4 (high)', progress, startedAt: '2026-09-06T00:00:00Z', turns: 20, toolCalls: 65 },
+    { id: 'child-id', parentTaskId: 'root-id', status: 'completed', description: 'CHILD_DESCRIPTION' },
+    { id: 'other-id', status: 'failed', description: 'OTHER_DESCRIPTION', progress: 'OTHER_PROGRESS' },
+  ] };
+  const expanded = emptyViewState('session');
+  for (const id of ['root-id', 'other-id']) setExpanded(expanded, TASK_SCOPE, id, true);
+  for (const id of ['node', 'missing']) setExpanded(expanded, 'run', id, true);
+  const options = { columns: 80, rows: 200, color: false, viewState: expanded, selectedTaskId: 'root-id', now: Date.parse('2026-09-06T00:09:05Z') };
+  const card = (frame, id, kind = 'taskRanges') => frame.text.split('\n').slice(3 + frame[kind][id].start, 3 + frame[kind][id].end);
+  const compact = renderFrame(state, options);
+  const lines = card(compact, 'root-id');
+  assert.equal(lines.length, 10, 'four root lines and four explicit child lines plus borders');
+  assert.match(lines[1], /> ● ROOT_DESCRIPTION/);
+  assert.match(lines[2], /worker\/visual · gpt-5.4 \(high\)/);
+  assert.match(lines[3], /PROGRESS_HEAD.*…/);
+  assert.match(lines[4], /9m 5s · 20 turns · 65 tools/);
+  assert.match(lines[5], /↳ ✓ CHILD_DESCRIPTION/);
+  assert.match(card(compact, 'other-id')[1], /× OTHER_DESCRIPTION/);
+  assert.doesNotMatch(lines.join('\n'), /root-id|child-id|opencodex\/|PROGRESS_TAIL|2026-09-06/);
+  assert.ok(!lines.join('\n').includes('\x1b'));
+  const korean = renderFrame(state, { ...options, language: 'ko' });
+  assert.match(card(korean, 'root-id')[4], /9분 5초 · 20턴 · 도구 65회/);
+  const full = renderFrame(state, { ...options, verbose: true });
+  const fullRoot = card(full, 'root-id').join('\n');
+  for (const token of ['root-id', 'PROGRESS_HEAD', 'PROGRESS_TAIL', '2026-09-06T00:00:00Z', 'opencodex/gpt-5.4']) assert.ok(fullRoot.includes(token), token);
+  assert.equal(card(full, 'other-id').length, 6);
+  assert.equal(card(renderFrame(state, { ...options, selectedTaskId: undefined, verbose: true }), 'root-id').length, 10);
+  const viewState = emptyViewState('session');
+  setExpanded(viewState, TASK_SCOPE, 'root-id', false);
+  const saved = structuredClone(viewState);
+  const collapsed = renderFrame(state, { ...options, viewState });
+  assert.equal(card(collapsed, 'root-id').length, 3);
+  assert.doesNotMatch(card(collapsed, 'root-id').join('\n'), /PROGRESS_HEAD|CHILD_DESCRIPTION/);
+  assert.ok(card(renderFrame(state, { ...options, viewState, verbose: true }), 'root-id').join('\n').includes('PROGRESS_TAIL'));
+  assert.deepEqual(viewState, saved);
+  assert.deepEqual(renderFrame(state, { ...options, viewState }), collapsed);
+  state.runs = [{ id: 'run', name: 'RUN', status: 'running', nodes: [
+    { id: 'node', label: 'GRAPH_LABEL', state: 'running', taskId: 'root-id' },
+    { id: 'missing', label: 'MISSING_LABEL', state: 'pending' },
+  ], edges: [{ from: 'node', to: 'missing' }] }];
+  const freshDag = renderFrame(state, { ...options, viewState: { expanded: { '["run","node"]': false } } });
+  for (const range of Object.values(freshDag.nodeRanges)) assert.equal(range.end - range.start, 3);
+  assert.doesNotMatch(freshDag.text, /PROGRESS_HEAD|CHILD_DESCRIPTION/);
+  const dag = renderFrame(state, { ...options, selectedNodeId: 'node' });
+  assert.deepEqual(card(dag, 'node', 'nodeRanges'), lines);
+  assert.match(dag.text, /node → missing/);
+  const missing = card(dag, 'missing', 'nodeRanges');
+  assert.equal(missing.length, 6);
+  assert.match(missing[1], /○ MISSING_LABEL/);
+  assert.doesNotMatch(missing.join('\n'), /undefined|null|NaN|0 turns/);
+  for (const columns of [8, 20, 35, 54, 80]) for (const color of [false, true]) {
+    const narrow = renderFrame(state, { ...options, columns, color, selectedNodeId: 'node' });
+    assert.ok(narrow.text.split('\n').every(line => width(line) < columns));
+    assert.equal(card(narrow, 'node', 'nodeRanges').length, 10);
+  }
+});
+
+test('automatic card ranges and DAG markers use authoritative status, while booleans and detail remain independent', () => {
+  for (const dag of [false, true]) for (const status of ['running', 'pending', 'blocked', 'scheduled', 'paused', 'completed', 'failed', 'cancelled', 'skipped', 'error', 'interrupted', 'lost', 'unknown', undefined]) {
+    const task = { id: 'task', status: dag ? (status === 'running' ? 'completed' : 'running') : status, description: 'CARD_SENTINEL', progress: 'PROGRESS_SENTINEL' };
+    const state = { connected: true, tasks: [task], runs: dag ? [{ id: 'run', name: 'Run', status: 'running',
+      nodes: [{ id: 'node', label: 'NODE_SENTINEL', state: status, taskId: task.id }], edges: [] }] : [] };
+    for (const preference of [undefined, false, true]) {
+      const viewState = emptyViewState('session');
+      if (preference !== undefined) setExpanded(viewState, dag ? 'run' : TASK_SCOPE, dag ? 'node' : 'task', preference);
+      const saved = structuredClone(viewState);
+      const options = { columns: 80, rows: 100, color: false, viewState, selectedNodeId: 'node', selectedTaskId: 'task' };
+      const expanded = preference ?? status === 'running';
+      const frame = renderFrame(state, options);
+      const range = dag ? frame.nodeRanges.node : frame.taskRanges.task;
+      assert.equal(range.end - range.start, expanded ? 6 : 3);
+      assert.equal(frame.text.includes('PROGRESS_SENTINEL'), expanded);
+      assert.equal(frame.text.includes('[+] CARD_SENTINEL'), !expanded);
+      if (dag && (status === 'unknown' || status === undefined)) {
+        assert.match(frame.text, /Graph error: Unknown translation key/);
+        assert.throws(() => renderFrame(state, { ...options, verbose: true }), /Unknown translation key/);
+      } else {
+        if (dag) assert.ok(frame.text.includes(`[${expanded ? '-' : '+'}] NODE_SENTINEL`));
+        assert.ok(renderFrame(state, { ...options, verbose: true }).text.includes('PROGRESS_SENTINEL'));
+      }
+      assert.deepEqual(renderFrame(state, options), frame);
+      assert.deepEqual(viewState, saved);
+    }
   }
 });
 
@@ -110,12 +207,12 @@ test('expanded details wrap full task data and traverse only explicit descendant
     { id: 'task-b', description: 'DEPENDENCY_NOT_CHILD' },
     { id: 'stray', description: 'UNRELATED_TASK' },
   ] };
-  const frame = render(state, { columns: 54, rows: 200, color: false, selectedNodeId: 'a' });
+  const frame = render(state, { columns: 54, rows: 200, color: false, selectedNodeId: 'a', verbose: true });
   for (const token of ['PROGRESS_START', 'PROGRESS_END', 'DESCRIPTION_START', 'DESCRIPTION_END',
     'worker', 'test-model', 'EXPLICIT_CHILD', 'EXPLICIT_GRANDCHILD', '2026-09-06T01:00:00Z', '2026-09-06T01:02:00Z']) assert.ok(frame.includes(token), token);
   assert.doesNotMatch(frame, /UNRELATED_TASK/);
   assert.ok(frame.split('\n').every(line => width(line) < 54));
-  const a = renderFrame(state, { columns: 54, rows: 200, color: false }).nodeRanges.a;
+  const a = renderFrame(state, { columns: 54, rows: 200, color: false, selectedNodeId: 'a', verbose: true }).nodeRanges.a;
   const aLines = frame.split('\n').slice(3 + a.start, 3 + a.end).join('\n');
   assert.doesNotMatch(aLines, /DEPENDENCY_NOT_CHILD/);
   assert.ok(aLines.includes(`${messages.en.turns}: 0`));
@@ -130,9 +227,9 @@ test('expanded details wrap full task data and traverse only explicit descendant
 test('navigation keeps a selected detail header visible and scrolling remains bounded', () => {
   const runs = sessionRuns(payload(), sessionId);
   const state = { runs, connected: true };
-  const frame = renderFrame(state, { rows: 14, columns: 54, selectedNodeId: 'verify', revealSelection: true, color: false });
+  const frame = renderFrame(state, { rows: 14, columns: 54, selectedNodeId: 'verify', revealSelection: true, color: false, viewState: { expanded: { [JSON.stringify([runs[0].id, 'verify'])]: true } } });
   assert.ok(frame.scroll > 0);
-  assert.match(frame.text, /> \[-\].*verify/);
+  assert.ok(frame.text.includes(`> ○ ${runs[0].nodes.find(node => node.id === 'verify').label}`));
   const end = renderFrame(state, { rows: 14, scroll: 99999, color: false });
   assert.ok(end.scroll < 99999);
 });
@@ -146,10 +243,11 @@ test('missing task metadata is explicit, cyclic subtasks terminate, and text can
     { id: 'parent', parentTaskId: 'child', progress: '\x1b]52;c;YQ==\x07SAFE_PROGRESS\x1b[2J' },
     { id: 'child', parentTaskId: 'parent', description: 'CHILD_ONCE' },
   ] };
-  const { text, nodeRanges } = renderFrame(state, { rows: 200, color: false });
+  const { text, nodeRanges } = renderFrame(state, { rows: 200, color: false, selectedNodeId: 'missing', verbose: true, viewState: { expanded: { '["r","linked"]': true } } });
   const missing = text.split('\n').slice(3 + nodeRanges.missing.start, 3 + nodeRanges.missing.end).join('\n');
   assert.ok(missing.includes(`${messages.en.task}: ${messages.en.noData}`));
-  assert.ok(text.includes(`${messages.en.agent}: ${messages.en.noData}`));
+  const linked = render(state, { rows: 200, color: false, selectedNodeId: 'linked', verbose: true });
+  assert.ok(linked.includes(`${messages.en.agent}: ${messages.en.noData}`));
   assert.ok(text.includes('SAFE_PROGRESS'));
   assert.equal(text.match(/CHILD_ONCE/g)?.length, 1);
   assert.ok(!text.includes('\x1b'));
@@ -167,7 +265,7 @@ test('elapsed duration uses injected time, freezes completion, and never invents
   const state = { connected: true, runs: [{ id: 'r', name: 'R', status: 'running',
     nodes: [{ id: 'a', label: 'A', state: 'running', taskId: 'task' }], edges: [] }],
     tasks: [{ id: 'task', status: 'running', startedAt, turns: 0, toolCalls: 7 }] };
-  const frame = (time = now) => render(state, { now: time, color: false, rows: 100 });
+  const frame = (time = now) => render(state, { now: time, color: false, rows: 100, selectedNodeId: 'a', verbose: true });
   const elapsed = value => `${messages.en.elapsed}: ${value}`;
   assert.ok(frame().includes(elapsed('01:02:03')));
   assert.ok(frame(now + 1000).includes(elapsed('01:02:04')));
@@ -210,6 +308,10 @@ test('elapsed duration follows explicit descendants without borrowing the parent
     { id: 'child', parentTaskId: 'parent', status: 'running', startedAt: '2026-09-06T00:01:00Z' },
     { id: 'unknown', parentTaskId: 'parent', startedAt: '2026-09-06T00:01:00Z' },
   ] };
-  const frame = render(state, { now: Date.parse('2026-09-06T00:02:03Z'), color: false, rows: 100 });
-  for (const value of ['00:02:03', '00:01:03', messages.en.noData]) assert.ok(frame.includes(`${messages.en.elapsed}: ${value}`));
+  const frame = render(state, { now: Date.parse('2026-09-06T00:02:03Z'), color: false, rows: 100, viewState: { expanded: { '["r","a"]': true } } });
+  const interior = frame.split('\n').filter(line => line.startsWith('│')).slice(-12);
+  assert.match(interior[3], /2m 3s/);
+  assert.match(interior[7], /1m 3s/);
+  assert.match(interior[11], /^│\s+-\s+│$/);
+  assert.doesNotMatch(interior[11], /1m 3s|2m 3s/);
 });

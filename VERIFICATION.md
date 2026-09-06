@@ -36,6 +36,12 @@ The installed viewer recovered an actual completed three-node workflow created b
 
 The active installed runtime was byte-compared with the source. Installation selects the active agent-directory environment variables rather than always writing under `~/.omo/agent`. Existing OmO sessions still require `/reload`; close any old failed viewer and use `/dag-pane` to reopen. The optional standalone installed-Senpi loader verifier timed out while importing Senpi, under both Node and Bun; that Windows loader check is **not verified**. Language-server initialization lacked TypeScript, so JavaScript syntax checks covered all 30 source, script, and test modules instead.
 
+## Version 1.1.1 verification
+
+The compact-card update passed 72 tests on Linux x86_64 with Node 24.14.0 and the optional real Bun/Senpi loader check enabled. Expanded cards use four lines; `d` temporarily shows full selected details. Event-driven real PTY tests cover standalone and DAG status transitions, automatic expansion only while running, automatic folding on completion, persistent manual overrides, and restarting without persisting temporary detail views. The build and offline package check also passed.
+
+The active Herdr viewer was updated in place. Its running generation and installed automatic-expansion policy were confirmed, as were compact/full-detail switching and preservation of saved fold preferences. Real business tasks were not modified to manufacture state transitions; transition coverage uses synthetic snapshots through the actual viewer PTY. No new pixel-level visual approval is claimed for this update.
+
 ## Current limits
 
 The earlier release baseline passed 20 behavior tests. Version 1.1.0 extends that coverage as described above. The package smoke check installs the actual tarball offline and verifies CLI execution, language selection and persistence, installer dry-run, extension imports, updates, and the MIT notice. These checks do not replace the live compatibility limits below.

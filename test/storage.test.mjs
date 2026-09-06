@@ -47,3 +47,26 @@ test('permanent replacement failures preserve the previous snapshot and surface 
   assert.deepEqual(await readJson(file), { generation: 1 });
   assert.deepEqual(await fs.readdir(directory), ['state.json']);
 });
+
+test('cleanup failure preserves the primary write error and exposes the cleanup cause', async t => {
+  const directory = await fs.mkdtemp(join(tmpdir(), 'herdr-storage-cleanup-'));
+  const remove = fs.rm;
+  t.after(async () => {
+    t.mock.restoreAll();
+    syncBuiltinESMExports();
+    await remove(directory, { recursive: true, force: true });
+  });
+  const file = join(directory, 'state.json');
+  await writeJson(file, { generation: 1 });
+  const primary = Object.assign(new Error('replacement failed'), { code: 'ENOSPC' });
+  const cleanup = Object.assign(new Error('temporary file locked'), { code: 'EPERM' });
+  t.mock.method(fs, 'rename', async () => { throw primary; });
+  t.mock.method(fs, 'rm', async () => { throw cleanup; });
+  syncBuiltinESMExports();
+  await assert.rejects(writeJson(file, { generation: 2 }), error => {
+    assert.equal(error, primary);
+    assert.equal(error.cause, cleanup);
+    return true;
+  });
+  assert.deepEqual(await readJson(file), { generation: 1 });
+});

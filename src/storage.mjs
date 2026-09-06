@@ -22,7 +22,9 @@ export async function writeJson(path, value) {
         await delay(10 * 2 ** attempt);
       }
     }
-  } finally {
-    await rm(temporary, { force: true });
+  } catch (error) {
+    try { await rm(temporary, { force: true }); }
+    catch (cleanupError) { error.cause = cleanupError; }
+    throw error;
   }
 }

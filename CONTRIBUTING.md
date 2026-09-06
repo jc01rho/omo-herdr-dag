@@ -16,6 +16,8 @@ The deterministic tests cover snapshot normalization, session isolation, pane re
 
 On POSIX, the interactive viewer test requires Python 3 and a Unix PTY. On Windows it uses `node-pty` with real ConPTY input and resize events, tapping the viewer's complete output frames before ConPTY converts them into differential terminal updates. Both bridges wait for frame predicates rather than fixed delays. These are test-only requirements; the installed extension and viewer still require only Node. The test covers node selection, default expansion, collapse/expand, state updates, resizing, and preference persistence across restarts. Windows store tests use privilege-free hard links; POSIX also tests symbolic links.
 
+The POSIX quoting regression runs Bash on every test host, including Windows. Windows contributors need `bash` on PATH (for example, Git for Windows); the installed viewer still uses PowerShell and does not require Bash.
+
 The build assembles `dist/` and checks JavaScript syntax. The package check installs the real npm tarball offline into a temporary project and verifies the public CLI. `npm run check` runs the complete local pipeline. Generated files in `dist/` and `.artifacts/` should not be committed.
 
 English is the default interface language. Keep English and Korean entries in `src/i18n.mjs` complete, and preserve workflow-provided labels in their original language. Test both the fresh-install default and explicit `--lang ko` selection.

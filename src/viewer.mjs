@@ -15,6 +15,9 @@ let view = state?.runs?.length ? 'dag' : 'tasks', selectedTaskId;
 let scroll = 0, error = '', timer, drawing = false, again = false;
 let viewState = emptyViewState(state?.sessionId), viewError = '', saving = Promise.resolve(), closing = false;
 const selectedNodes = new Map();
+// Follow the newest run until the user explicitly picks another one with the arrow keys.
+// Without this, a new run in the same session leaves the pane frozen on the finished run.
+let followLatest = true;
 let revealSelection = false, verbose = false, detailSelection;
 async function restorePreferences() {
   try { viewState = await loadViewState(file, state?.sessionId); viewError = ''; }
@@ -51,8 +54,11 @@ async function refresh() {
       state = next; error = '';
       if (sessionChanged) {
         await saving; selectedNodes.clear(); selectedTaskId = undefined; scroll = 0;
+        selectedId = state?.runs?.[0]?.id; followLatest = true;
         view = state?.runs?.length ? 'dag' : 'tasks';
         await restorePreferences();
+      } else if (followLatest && next.runs?.length && next.runs[0].id !== selectedId) {
+        selectedId = next.runs[0].id; scroll = 0;
       }
     }
     else error = t(state?.language, 'stateMissing');
@@ -112,6 +118,7 @@ process.stdin.on('keypress', (_text, pressed) => {
     selectedId = runs[(current + (key === '\x1b[C' ? 1 : -1) + runs.length) % runs.length]?.id;
     if (runs.length) view = 'dag';
     scroll = 0; revealSelection = false;
+    followLatest = selectedId === runs[0]?.id;
   }
   const run = state?.runs?.find(run => run.id === selectedId);
   const items = view === 'tasks' ? standaloneTasks(state) : run?.nodes ?? [];

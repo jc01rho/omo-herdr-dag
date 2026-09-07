@@ -393,6 +393,36 @@ test('real viewer PTY selects, toggles, refreshes, switches runs and persists ac
   console.log('PTY evidence: saved false folded, saved true restored, Tab/Shift-Tab/n/p, Space/Enter, run switches, atomic refresh/reorder/retry/new node, quit/restart persistence passed.');
 });
 
+test('real viewer follows a newly arrived run until the user picks another run', { timeout: 25000 }, async t => {
+  const dir = await mkdtemp(join(tmpdir(), 'dag-follow-'));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  const file = join(dir, 'session.json');
+  const state = { sessionId: 'follow-session', connected: true, runs: [
+    { id: 'r-old', name: 'OLD_RUN', status: 'completed', nodes: [
+      { id: 'a', label: 'OLD_NODE', state: 'completed', taskId: 'st_old' },
+    ], edges: [] },
+  ], tasks: [{ id: 'st_old', status: 'completed', description: 'OLD_TASK' }] };
+  await writeJson(file, state);
+  const viewer = openViewer(file, t);
+  await viewer.frame(text => text.includes('OLD_RUN'));
+  state.runs.unshift({ id: 'r-new', name: 'NEW_RUN', status: 'running', nodes: [
+    { id: 'b', label: 'NEW_NODE', state: 'running', taskId: 'st_new' },
+  ], edges: [] });
+  state.tasks.push({ id: 'st_new', status: 'running', description: 'NEW_TASK' });
+  const followed = await viewer.frame(text => text.includes('NEW_RUN') && text.includes('1/2') && text.includes('NEW_NODE'), () => writeJson(file, state));
+  assert.ok(!followed.includes('OLD_RUN'));
+  await viewer.frame(text => text.includes('OLD_RUN') && text.includes('2/2'), () => viewer.send({ keys: '\x1b[D' }));
+  state.runs.unshift({ id: 'r-newest', name: 'NEWEST_RUN', status: 'running', nodes: [
+    { id: 'c', label: 'NEWEST_NODE', state: 'running', taskId: 'st_newest' },
+  ], edges: [] });
+  state.tasks.push({ id: 'st_newest', status: 'running', description: 'NEWEST_TASK' });
+  const pinned = await viewer.frame(text => text.includes('3/3') && (text.includes('NEWEST_RUN') || text.includes('OLD_RUN')), () => writeJson(file, state));
+  assert.ok(pinned.includes('OLD_RUN') && pinned.includes('3/3'));
+  assert.ok(!pinned.includes('NEWEST_RUN'));
+  await viewer.close();
+  console.log('PTY evidence: new run auto-followed once; manual run selection pins the pane across later arrivals.');
+});
+
 test('real viewer clock advances elapsed without new snapshots or input', { timeout: 15000 }, async t => {
   const dir = await mkdtemp(join(tmpdir(), 'dag-clock-'));
   t.after(() => rm(dir, { recursive: true, force: true }));

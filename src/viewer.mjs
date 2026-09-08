@@ -15,10 +15,9 @@ let view = state?.runs?.length ? 'dag' : 'tasks', selectedTaskId;
 let scroll = 0, error = '', timer, drawing = false, again = false;
 let viewState = emptyViewState(state?.sessionId), viewError = '', saving = Promise.resolve(), closing = false;
 const selectedNodes = new Map();
-// Follow the newest run until the user explicitly picks another one with the arrow keys.
-// Without this, a new run in the same session leaves the pane frozen on the finished run.
-let followLatest = true;
-let revealSelection = false, verbose = false, detailSelection;
+let revealSelection = false, verbose = false, detailSelection, completedExpanded = false;
+function isActive(run) { return run.status === 'running' || run.nodes.some(node => node.state === 'running'); }
+function selectableRuns() { return (state?.runs ?? []).filter(run => isActive(run) || completedExpanded); }
 async function restorePreferences() {
   try { viewState = await loadViewState(file, state?.sessionId); viewError = ''; }
   catch (cause) { viewState = emptyViewState(state?.sessionId); viewError = cause.message; }
@@ -38,7 +37,7 @@ function draw() {
     view === 'tasks' ? selectedTaskId : selectedNodes.get(selectedId)]);
   if (selection !== detailSelection) { verbose = false; detailSelection = selection; }
   const result = renderFrame(state, { columns: process.stdout.columns ?? 54, rows: process.stdout.rows ?? 48, runIndex, scroll, color: interactive,
-    error, notice: viewError ? t(state?.language, 'viewError', { error: viewError }) : '',
+    error, notice: viewError ? t(state?.language, 'viewError', { error: viewError }) : '', completedExpanded,
     selectedNodeId: selectedNodes.get(selectedId), selectedTaskId, view, viewState, verbose, revealSelection });
   scroll = result.scroll;
   const frame = result.text;
@@ -54,11 +53,9 @@ async function refresh() {
       state = next; error = '';
       if (sessionChanged) {
         await saving; selectedNodes.clear(); selectedTaskId = undefined; scroll = 0;
-        selectedId = state?.runs?.[0]?.id; followLatest = true;
+        selectedId = state?.runs?.[0]?.id; completedExpanded = false;
         view = state?.runs?.length ? 'dag' : 'tasks';
         await restorePreferences();
-      } else if (followLatest && next.runs?.length && next.runs[0].id !== selectedId) {
-        selectedId = next.runs[0].id; scroll = 0;
       }
     }
     else error = t(state?.language, 'stateMissing');
@@ -99,9 +96,9 @@ async function close(closePane = false) {
   }
   process.exit(0);
 }
-process.stdin.on('keypress', (_text, pressed) => {
+process.stdin.on('keypress', (text, pressed) => {
   if (closing) return;
-  const key = pressed.sequence;
+  const key = pressed.sequence || pressed.name || text;
   if (key === 'q' || key === '\x03' || key === '\x04') return void close(true);
   if (['\x1b[B', 'j', '\x1b[A', 'k', '\x1b[6~', '\x1b[5~'].includes(key)) revealSelection = false;
   if (key === '\x1b[B' || key === 'j') scroll++;
@@ -112,13 +109,16 @@ process.stdin.on('keypress', (_text, pressed) => {
     view = view === 'dag' ? 'tasks' : 'dag';
     scroll = 0; revealSelection = true;
   }
+  if ((key === 'c' || pressed.name === 'c') && (state?.runs?.length ?? 0) > 1) {
+    completedExpanded = !completedExpanded;
+    scroll = 0; revealSelection = true;
+  }
   if (key === '\x1b[C' || key === '\x1b[D') {
-    const runs = state?.runs ?? [];
+    const runs = selectableRuns();
     const current = Math.max(0, runs.findIndex(run => run.id === selectedId));
     selectedId = runs[(current + (key === '\x1b[C' ? 1 : -1) + runs.length) % runs.length]?.id;
     if (runs.length) view = 'dag';
     scroll = 0; revealSelection = false;
-    followLatest = selectedId === runs[0]?.id;
   }
   const run = state?.runs?.find(run => run.id === selectedId);
   const items = view === 'tasks' ? standaloneTasks(state) : run?.nodes ?? [];

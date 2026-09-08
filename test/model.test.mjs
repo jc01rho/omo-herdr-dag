@@ -56,6 +56,23 @@ test('standalone tasks are separate from every DAG, respect explicit folds, and 
   }
 });
 
+test('multi-run summaries expose immutable counts, active selection identity, and collapsed completed group', () => {
+  const state = { connected: true, runs: [
+    { id: 'active', name: 'ACTIVE_RUN', status: 'running', nodes: [
+      { id: 'a', label: 'A', state: 'running' }, { id: 'b', label: 'B', state: 'pending' }, { id: 'c', label: 'C', state: 'completed' }], edges: [] },
+    { id: 'done', name: 'DONE_RUN', status: 'completed', nodes: [
+      { id: 'd', label: 'D', state: 'completed' }], edges: [] },
+  ] };
+  const frame = renderFrame(state, { columns: 54, rows: 40, color: false, runIndex: 0 });
+  assert.match(frame.text, /ACTIVE_RUN/);
+  assert.match(frame.text, /3 total/);
+  assert.match(frame.text, /1 running/);
+  assert.match(frame.text, /1 waiting/);
+  assert.match(frame.text, /Active runs: 1/);
+  assert.match(frame.text, /Completed runs \(1\)/);
+  assert.doesNotMatch(frame.text, /1\/2/);
+});
+
 test('compact cards share four safe lines, localized counts, selected-only detail, and temporary collapse override', () => {
   const progress = `PROGRESS_HEAD ${'한글🙂 useful work '.repeat(20)} PROGRESS_TAIL`;
   const state = { connected: true, runs: [], tasks: [

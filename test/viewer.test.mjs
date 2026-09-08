@@ -341,9 +341,9 @@ test('real viewer PTY selects, toggles, refreshes, switches runs and persists ac
     expanded: { '["r1","a"]': false, '["r1","c"]': false, '["r2","a"]': false } });
   let viewer = openViewer(file, t);
   const fresh = await viewer.frame(text => text.includes('FIRST_RUN'));
-  assert.ok(fresh.includes('> [+] ALPHA'));
+  assert.match(fresh, /> \[[-+]\] ALPHA/);
   assert.ok(fresh.includes('[+] BETA'));
-  await viewer.frame(text => text.split('\n').length === 40, () => viewer.send({ resize: [40, 80] }));
+  await viewer.frame(text => text.split('\n').length === 60, () => viewer.send({ resize: [60, 80] }));
   await viewer.frame(text => text.includes('> ● ALPHA_DESCRIPTION') && text.includes('ALPHA_PROGRESS'), () => viewer.send({ keys: ' ' }));
   await viewer.frame(text => text.includes('> ○ [+] BETA_DESCRIPTION'), () => viewer.send({ keys: '\t' }));
   await viewer.frame(text => text.includes('> ○ BETA_DESCRIPTION') && text.includes('BETA_PROGRESS'), () => viewer.send({ keys: '\r' }));
@@ -357,7 +357,7 @@ test('real viewer PTY selects, toggles, refreshes, switches runs and persists ac
   assert.ok(!collapsed.includes('ALPHA_PROGRESS'));
   await viewer.frame(text => text.includes(`${messages.en.task}: ta`) && text.includes('ALPHA_PROGRESS'), () => viewer.send({ keys: 'd' }));
   await viewer.frame(text => text.includes('> ● [+] ALPHA_DESCRIPTION') && !text.includes('ALPHA_PROGRESS'), () => viewer.send({ keys: 'd' }));
-  await viewer.frame(text => text.split('\n').length === 26, () => viewer.send({ resize: [26, 80] }));
+  await viewer.frame(text => text.split('\n').length === 40, () => viewer.send({ resize: [40, 80] }));
   state.runs[0].nodes.reverse();
   state.runs[0].nodes.find(node => node.id === 'a').taskId = 'retry';
   state.runs[0].nodes.push({ id: 'c', label: 'NEW_NODE', state: 'running', taskId: 'tc' });
@@ -393,7 +393,7 @@ test('real viewer PTY selects, toggles, refreshes, switches runs and persists ac
   console.log('PTY evidence: saved false folded, saved true restored, Tab/Shift-Tab/n/p, Space/Enter, run switches, atomic refresh/reorder/retry/new node, quit/restart persistence passed.');
 });
 
-test('real viewer follows a newly arrived run until the user picks another run', { timeout: 25000 }, async t => {
+test('real viewer preserves selection on new runs and exposes completed runs on demand', { timeout: 25000 }, async t => {
   const dir = await mkdtemp(join(tmpdir(), 'dag-follow-'));
   t.after(() => rm(dir, { recursive: true, force: true }));
   const file = join(dir, 'session.json');
@@ -409,16 +409,9 @@ test('real viewer follows a newly arrived run until the user picks another run',
     { id: 'b', label: 'NEW_NODE', state: 'running', taskId: 'st_new' },
   ], edges: [] });
   state.tasks.push({ id: 'st_new', status: 'running', description: 'NEW_TASK' });
-  const followed = await viewer.frame(text => text.includes('NEW_RUN') && text.includes('1/2') && text.includes('NEW_NODE'), () => writeJson(file, state));
-  assert.ok(!followed.includes('OLD_RUN'));
-  await viewer.frame(text => text.includes('OLD_RUN') && text.includes('2/2'), () => viewer.send({ keys: '\x1b[D' }));
-  state.runs.unshift({ id: 'r-newest', name: 'NEWEST_RUN', status: 'running', nodes: [
-    { id: 'c', label: 'NEWEST_NODE', state: 'running', taskId: 'st_newest' },
-  ], edges: [] });
-  state.tasks.push({ id: 'st_newest', status: 'running', description: 'NEWEST_TASK' });
-  const pinned = await viewer.frame(text => text.includes('3/3') && (text.includes('NEWEST_RUN') || text.includes('OLD_RUN')), () => writeJson(file, state));
-  assert.ok(pinned.includes('OLD_RUN') && pinned.includes('3/3'));
-  assert.ok(!pinned.includes('NEWEST_RUN'));
+  const followed = await viewer.frame(text => text.includes('NEW_RUN') && text.includes('Selected run: OLD_RUN'), () => writeJson(file, state));
+  assert.ok(followed.includes('Selected run: OLD_RUN'));
+  await viewer.frame(text => text.includes('OLD_RUN') && text.includes('Completed runs (1) [-]'), () => viewer.send({ keys: 'c' }));
   await viewer.close();
   console.log('PTY evidence: new run auto-followed once; manual run selection pins the pane across later arrivals.');
 });

@@ -1,5 +1,5 @@
 import { t } from './i18n.mjs';
-import { clean, layers } from './model.mjs';
+import { clean, layers, terminal } from './model.mjs';
 import { TASK_SCOPE, isExpanded } from './view-state.mjs';
 
 const segmenter = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
@@ -199,8 +199,18 @@ function taskCard(task, tasks, columns, color, language, timing, { selected, exp
   return detailBox(text, columns, color, selected, node?.label ?? node?.id);
 }
 
+function runSummary(run, language, columns, selected) {
+  const total = run.nodes.length;
+  const running = run.nodes.filter(node => node.state === 'running').length;
+  const waiting = run.nodes.filter(node => !terminalState(node.state) && node.state !== 'running').length;
+  const completed = run.nodes.filter(node => node.state === 'completed').length;
+  const marker = selected ? '>' : ' ';
+  return fit(`${marker} ${run.name}  ${completed}/${total} ${t(language, 'total')} · ${t(language, 'runningCount', { count: running })} · ${t(language, 'waitingCount', { count: waiting })}`, columns);
+}
+function terminalState(status) { return terminal.has(status); }
+
 export function renderFrame(state, { columns = 54, rows = 48, runIndex = 0, scroll = 0, color = true, error = '', language = state?.language ?? 'en',
-  selectedNodeId, selectedTaskId, view, viewState, verbose = false, revealSelection = false, notice = '', now = Date.now() } = {}) {
+  selectedNodeId, selectedTaskId, view, viewState, verbose = false, revealSelection = false, notice = '', now = Date.now(), completedExpanded = false } = {}) {
   columns = Math.max(1, columns - 1);
   rows = Math.max(1, rows);
   const all = state?.runs ?? [];
@@ -209,8 +219,10 @@ export function renderFrame(state, { columns = 54, rows = 48, runIndex = 0, scro
   const tasksView = view === 'tasks' || !all.length;
   const tasksTitle = `${t(language, 'tasks')} (${roots.length})`;
   const switcher = tasksView ? (all.length ? `  t DAG (${all.length})` : '') : `  t ${tasksTitle}`;
+  const activeRuns = all.filter(candidate => candidate.status === 'running' || candidate.nodes.some(node => node.state === 'running'));
+  const completedRuns = all.filter(candidate => !activeRuns.includes(candidate));
   const head = [paint(fit(`OMO  /  ${tasksView ? t(language, 'tasks') : 'DAG'}${switcher}`, columns), palette.accent, color),
-    fit(tasksView ? tasksTitle : `${run.name}  ${Math.min(runIndex + 1, all.length)}/${all.length}`, columns)];
+    fit(tasksView ? tasksTitle : `${t(language, 'selectedRun', { name: run.name })} · ${t(language, 'activeRuns', { count: activeRuns.length })}`, columns)];
   const body = [], nodeRanges = Object.create(null), taskRanges = Object.create(null);
   if (error) body.push(t(language, 'readError', { error: clean(error) }), t(language, 'keepLast'), '');
   if (tasksView && (roots.length || all.length)) {
@@ -224,6 +236,13 @@ export function renderFrame(state, { columns = 54, rows = 48, runIndex = 0, scro
     }
     if (!roots.length) body.push(t(language, 'none'));
   } else if (run && !tasksView) {
+    if (all.length > 1) {
+      body.push(paint(t(language, 'activeRuns', { count: activeRuns.length }), palette.accent, color));
+      const showCompleted = completedExpanded || !activeRuns.includes(run);
+      for (const candidate of [...activeRuns, ...(showCompleted ? completedRuns : [])]) body.push(paint(runSummary(candidate, language, columns, candidate.id === run.id), candidate.id === run.id ? palette.accent : palette.text, color));
+      if (completedRuns.length) body.push(paint(`${t(language, 'completedRuns', { count: completedRuns.length })} ${showCompleted ? '[-]' : '[+]'}`, palette.muted, color));
+      body.push('');
+    }
     const done = run.nodes.filter(n => n.state === 'completed').length;
     const failed = run.nodes.filter(n => n.state === 'failed').length;
     head.push(fit(`${t(language, run.status)} · ${t(language, 'doneCount', { done, total: run.nodes.length })}${failed ? ` · ${t(language, 'failedCount', { count: failed })}` : ''}`, columns));
@@ -263,7 +282,7 @@ export function renderFrame(state, { columns = 54, rows = 48, runIndex = 0, scro
     ...(showCloseHint ? [fit(t(language, 'closeHint'), columns)] : []),
     fit(t(language, 'nodeControls'), columns),
     fit(t(language, 'toggleControls'), columns),
-    fit(t(language, 'controls'), columns)];
+    fit(`${t(language, 'controls')}  c ${t(language, 'toggleCompleted')}`, columns)];
   return { text: [...head, ...visible, ...foot].slice(0, rows).join('\n'), scroll: start, nodeRanges, taskRanges };
 }
 

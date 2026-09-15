@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { DagPane } from '../src/controller.mjs';
+import { DagPane, dagTitle, isDagViewerPane } from '../src/controller.mjs';
 import { readJson, writeJson } from '../src/storage.mjs';
 import { payload, sessionId } from './fixtures.mjs';
 import { normalizeRun } from '../src/model.mjs';
@@ -22,6 +22,14 @@ async function setup(t) {
     calls.push(args);
     if (args[0] === 'split') { const pane_id = `test:p${++number}`; panes.add(pane_id); return { pane: { pane_id } }; }
     if (args[0] === 'get' && !panes.has(args[1])) throw new Error('pane_not_found');
+    if (args[0] === 'list') return { panes: [
+      { pane_id: options.parentPane, tab_id: 'tab0', label: 'OmO' },
+      ...[...panes].map(pane_id => ({ pane_id, tab_id: 'tab0', label: dagTitle(sessionId) })),
+    ] };
+    if (args[0] === 'close') {
+      if (!panes.has(args[1])) throw new Error('pane_not_found');
+      panes.delete(args[1]);
+    }
     return {};
   };
   const options = { sessionId, parentPane: 'test:p0', socket: '/tmp/test.sock', stateDir,
@@ -168,10 +176,11 @@ test('empty startup and foreign task events never create a pane', async t => {
 test('a burst of events creates one pane, preserves focus, updates the same state file', async t => {
   const { calls, controller } = await setup(t);
   await Promise.all(Array.from({ length: 12 }, () => controller.receive(payload())));
+  const split = calls.find(c => c[0] === 'split');
   assert.equal(calls.filter(c => c[0] === 'split').length, 1);
-  assert.ok(calls[0].includes('--no-focus'));
-  assert.ok(calls[0].includes('right'));
-  assert.equal(calls[0][calls[0].indexOf('--ratio') + 1], '0.65');
+  assert.ok(split.includes('--no-focus'));
+  assert.ok(split.includes('right'));
+  assert.equal(split[split.indexOf('--ratio') + 1], '0.65');
   assert.equal(calls.filter(c => c[0] === 'run').length, 1);
   const next = payload(); next.runs[0].nodes.forEach(n => { n.state = 'completed'; }); next.runs[0].status = 'completed';
   await controller.receive(next);
@@ -203,8 +212,32 @@ test('a failed split is reported once; later events do not create orphan panes',
   const { options } = await setup(t); let calls = 0; const messages = [];
   const controller = new DagPane({ ...options, herdr: async () => { calls++; throw new Error('socket timeout'); }, notify: m => messages.push(m) });
   await assert.rejects(controller.receive(payload()), /timeout/);
+  const first = calls;
   await controller.receive(payload());
-  assert.equal(calls, 1); assert.equal(messages.length, 1);
+  assert.equal(calls, first); assert.equal(messages.length, 1);
+});
+
+test('opening closes leftover DAG panes and reuses a live recorded pane', async t => {
+  const { calls, panes, controller } = await setup(t);
+  panes.add('test:stale');
+  await controller.receive(payload());
+  assert.equal(calls.filter(call => call[0] === 'split').length, 1);
+  assert.ok(calls.some(call => call[0] === 'close' && call[1] === 'test:stale'));
+  assert.equal(panes.has('test:stale'), false);
+  const live = [...panes][0];
+  panes.add('test:duplicate');
+  await controller.open();
+  assert.equal(calls.filter(call => call[0] === 'split').length, 1);
+  assert.ok(calls.some(call => call[0] === 'close' && call[1] === 'test:duplicate'));
+  assert.equal(panes.has(live), true);
+  assert.equal(panes.has('test:duplicate'), false);
+});
+
+test('DAG viewer panes are identified by title prefix', () => {
+  assert.equal(isDagViewerPane({ label: dagTitle(sessionId) }), true);
+  assert.equal(isDagViewerPane({ terminal_title: 'DAG · leftover' }), true);
+  assert.equal(isDagViewerPane({ terminal_title: 'OmO DAG' }), true);
+  assert.equal(isDagViewerPane({ label: 'OmO', terminal_title: 'OmO' }), false);
 });
 
 test('the selected language is persisted for the viewer', async t => {

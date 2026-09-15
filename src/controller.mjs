@@ -11,6 +11,19 @@ export function viewKey(socket, pane, session) {
   return createHash('sha256').update(JSON.stringify([socket, pane, session])).digest('hex').slice(0, 24);
 }
 
+export function dagTitle(sessionId) {
+  return `DAG · ${sessionId.slice(0, 8)}`;
+}
+
+export function isDagViewerPane(pane) {
+  return [pane?.label, pane?.terminal_title, pane?.terminal_title_stripped]
+    .some(name => typeof name === 'string' && (name.startsWith('DAG · ') || name === 'OmO DAG'));
+}
+
+function missingPane(error) {
+  return /pane_not_found|unknown pane|pane .*not found/i.test(`${error.message} ${error.stderr ?? ''}`);
+}
+
 export class DagPane {
   constructor({ sessionId, parentPane, socket, stateDir, cwd, node, viewer, herdr, notify = () => {}, language = 'en', taskStateDir }) {
     Object.assign(this, { sessionId, parentPane, cwd, node, viewer, herdr, notify });
@@ -107,6 +120,32 @@ export class DagPane {
     });
   }
 
+  async listDagPanes() {
+    try {
+      const panes = (await this.herdr('list'))?.panes ?? [];
+      const tab = panes.find(pane => pane.pane_id === this.parentPane)?.tab_id;
+      return panes.filter(isDagViewerPane)
+        .filter(pane => pane.pane_id && pane.pane_id !== this.parentPane && (!tab || pane.tab_id === tab))
+        .map(pane => pane.pane_id);
+    } catch (error) {
+      if (error instanceof Error) return [];
+      throw error;
+    }
+  }
+
+  async closePane(paneId) {
+    try { await this.herdr('close', paneId); }
+    catch (error) {
+      if (!missingPane(error)) this.notify(t(this.language, 'closeFailed', { error: error.message }));
+    }
+  }
+
+  async closeDagPanes(keep) {
+    for (const paneId of await this.listDagPanes()) {
+      if (paneId !== keep) await this.closePane(paneId);
+    }
+  }
+
   async ensure(force) {
     const record = await readJson(this.recordFile);
     // Preserve a manually closed pane across events/reloads. /dag-pane explicitly reopens it.
@@ -114,25 +153,26 @@ export class DagPane {
     if (record?.paneId) {
       try {
         await this.herdr('get', record.paneId);
-        if (record.ready) return record.paneId;
-        // A failed launch might have left an occupied terminal. Never send text into it.
-        throw new Error(t(this.language, 'incompletePane', { pane: record.paneId }));
+        if (record.ready) {
+          await this.closeDagPanes(record.paneId);
+          return record.paneId;
+        }
+        // Occupied leftover from a failed launch: close it, then replace.
+        await this.closePane(record.paneId);
       } catch (error) {
-        // Only an explicit missing-pane response permits a replacement.
-        const detail = `${error.message} ${error.stderr ?? ''}`;
-        if (!/pane_not_found|unknown pane|pane .*not found/i.test(detail)) throw error;
+        if (!missingPane(error)) throw error;
       }
     }
-    // Resolve and validate the viewer runtime before creating a terminal pane.
     if (typeof this.node === 'function') this.node = await this.node();
     // Record an attempt before mutation: a timeout must not create repeated orphan panes.
     await writeJson(this.recordFile, { attempted: true });
+    await this.closeDagPanes();
     const result = await this.herdr('split', '--pane', this.parentPane, '--direction', 'right',
       '--ratio', '0.65', '--cwd', this.cwd, '--no-focus');
     const paneId = result?.pane?.pane_id;
     if (!paneId) throw new Error(t(this.language, 'missingPaneId'));
     await writeJson(this.recordFile, { paneId, ready: false });
-    await this.herdr('rename', paneId, `DAG · ${this.sessionId.slice(0, 8)}`);
+    await this.herdr('rename', paneId, dagTitle(this.sessionId));
     await this.herdr('run', paneId, shellCommand([this.node, this.viewer, '--state', this.stateFile, '--close-pane', paneId]));
     await writeJson(this.recordFile, { paneId, ready: true });
     return paneId;

@@ -146,7 +146,7 @@ q를 눌러 닫아도 됩니다.
 
 `install --lang ko`로 선택한 언어는 현재 설치 세대의 `locale.json`에 저장됩니다. 설치 결과의 `integration`이 해당 경로이며, `integration/current.json`에 현재 세대가 기록됩니다. 다른 `--lang` 값을 지정하지 않으면 업데이트 때도 유지합니다. 영어로 되돌리려면 `install --lang en`을 실행하세요. 환경 변수 설정이 저장된 언어보다 우선하며, 지원하지 않는 환경 변수 값은 영어로 처리합니다.
 
-Herdr는 각 pane에 `HERDR_ENV`, `HERDR_PANE_ID`, `HERDR_SOCKET_PATH`를 제공합니다. 이 환경 밖에서는 확장이 비활성 상태를 유지합니다. 다른 pane을 대상으로 삼기 위해 이 변수들을 수동으로 설정하지 마세요.
+Herdr는 각 pane에 `HERDR_ENV`, `HERDR_PANE_ID`, `HERDR_SOCKET_PATH`를 제공합니다. 확장은 그 소켓 경로가 실제로 존재하고, `herdr` 실행 파일도 있어야 활성화됩니다. `HERDR_BIN_PATH`가 존재하는 파일이면 그것을 쓰고, 없거나 ` (deleted)`처럼 잘못된 경로이면 `PATH`의 `herdr`를 찾습니다. 이전 Herdr 세션에서 남은 환경 변수만으로는 viewer를 열지 않습니다. 다른 pane을 대상으로 삼기 위해 이 변수들을 수동으로 설정하지 마세요.
 
 `omob` 같은 독립 실행 빌드에서도 viewer용 Node.js 24 이상을 별도로 설치해야 합니다. 확장은 pane을 열기 전에 런타임을 검증하며, `node`가 버전 관리자의 shim인 경우에도 실제 Node 실행 파일 경로를 확인합니다. 컴파일된 OmO 바이너리로 viewer를 실행하지 않습니다. 경로를 직접 지정하려면 `OMO_HERDR_DAG_NODE=/absolute/path/to/node omob`로 시작하세요. 명시한 경로가 유효하지 않으면 다른 런타임으로 대체하지 않고 경고합니다.
 
@@ -177,9 +177,9 @@ Snapshot은 로컬 JSON 파일입니다. 세션·실행 ID, 이름, 노드 이�
 | Herdr가 설치되지 않음 | 확장은 설치할 수 있지만, 일반 터미널에서는 비활성 상태를 유지합니다. |
 | Herdr가 설치되어 있어도 일반 터미널에서 OmO 실행 | 확장은 비활성화되고 `/dag-pane`도 등록되지 않습니다. Herdr 앱이 열려 있는 것만으로는 활성화되지 않습니다. |
 | Herdr pane 안에서 OmO 실행 | 확장이 활성화되고 `/dag-pane`을 등록하며, workflow DAG가 도착하면 viewer를 엽니다. |
-| Herdr 환경 변수는 있지만 CLI나 소켓을 사용할 수 없음 | Pane 조작에 실패하면 경고를 표시합니다. OmO 대화는 계속할 수 있습니다. |
+| Herdr 환경 변수는 있지만 소켓이나 `herdr` 실행 파일이 없음 | 확장은 비활성 상태를 유지하고 `/dag-pane`을 등록하지 않으며 pane 명령도 시도하지 않습니다. |
 
-Herdr가 제공하는 `HERDR_ENV=1`과 값이 있는 `HERDR_PANE_ID`, `HERDR_SOCKET_PATH`가 모두 있어야 활성화됩니다. 비활성 세션에서는 DAG 이벤트를 구독하거나 viewer pane을 열지 않습니다. Viewer를 사용하려면 환경 변수를 수동으로 지정하지 말고 Herdr pane 안에서 새 OmO 세션을 시작하세요.
+활성화에는 `HERDR_ENV=1`, 값이 있는 `HERDR_PANE_ID`와 `HERDR_SOCKET_PATH`, 그 경로의 실제 소켓, 그리고 찾을 수 있는 `herdr` 실행 파일이 필요합니다. 비활성 세션에서는 DAG 이벤트를 구독하거나 viewer pane을 열지 않습니다. Viewer를 사용하려면 환경 변수를 수동으로 지정하지 말고 Herdr pane 안에서 새 OmO 세션을 시작하세요.
 
 ### Herdr에 OmO를 커스텀 에이전트로 등록해야 하나요?
 

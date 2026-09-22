@@ -364,3 +364,17 @@ test('elapsed duration follows explicit descendants without borrowing the parent
   assert.match(interior[11], /^│\s+-\s+│$/);
   assert.doesNotMatch(interior[11], /1m 3s|2m 3s/);
 });
+
+test('DAG colors use theme ANSI and not fixed light-gray indexes', () => {
+  const state = { connected: true, runs: [{ id: 'run', name: 'RUN', status: 'running', nodes: [
+    { id: 'done', label: 'DONE_NODE', state: 'completed' },
+    { id: 'wait', label: 'WAIT_NODE', state: 'pending' },
+  ], edges: [{ from: 'done', to: 'wait' }] }] };
+  const text = render(state, { columns: 80, rows: 40, color: true, selectedNodeId: 'wait' });
+  const esc = String.fromCharCode(0x1b);
+  assert.equal(text.includes(`${esc}[38;5;`), false);
+  for (const index of [240, 244, 250, 252]) assert.equal(text.includes(`${esc}[${index}m`), false);
+  assert.equal(text.includes(`${esc}[32m`), true);
+  assert.equal(text.includes(`${esc}[36m`), true);
+  assert.equal(render(state, { columns: 80, rows: 40, color: false, selectedNodeId: 'wait' }).includes(esc), false);
+});

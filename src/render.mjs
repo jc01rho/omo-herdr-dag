@@ -29,9 +29,9 @@ export function fit(text, columns, pad = false) {
   return out + (pad ? ' '.repeat(Math.max(0, columns - used)) : '');
 }
 const icons = { pending: '○', blocked: '◌', scheduled: '◷', running: '●', paused: 'Ⅱ', completed: '✓', failed: '×', cancelled: '−', skipped: '·', error: '×', interrupted: '−', lost: '?' };
-const colors = { running: 81, completed: 114, failed: 203, blocked: 180, paused: 180, cancelled: 244, skipped: 244, pending: 250, scheduled: 81 };
-const palette = { accent: 81, muted: 244, text: 252, divider: 240 };
-const paint = (text, color, enabled) => enabled ? `\x1b[38;5;${color}m${text}\x1b[0m` : text;
+const colors = { running: '36', completed: '32', failed: '31', blocked: '33', paused: '33', scheduled: '36', error: '31' };
+const accent = '36';
+const paint = (text, color, enabled) => enabled && color ? `\x1b[${color}m${text}\x1b[0m` : text;
 const taskStatuses = new Set([...Object.keys(icons), 'error', 'interrupted', 'lost']);
 
 export function standaloneTasks(state) {
@@ -58,7 +58,7 @@ export function graphLines(run, columns, color = true, language = 'en', { select
       grid[1][b] |= 4; targets.add(b);
     }
     if (!targets.size) return [''];
-    return grid.map((row, y) => paint(row.map((bits, x) => y === 2 && targets.has(x) ? '▼' : glyphs[bits] ?? ' ').join('').trimEnd(), 81, color));
+    return grid.map((row, y) => paint(row.map((bits, x) => y === 2 && targets.has(x) ? '▼' : glyphs[bits] ?? ' ').join('').trimEnd(), accent, color));
   }
   // Exact incoming IDs and the edge list disambiguate crossings and edges which
   // skip a frontier. Wide frontiers wrap without changing their dependencies.
@@ -82,9 +82,9 @@ export function graphLines(run, columns, color = true, language = 'en', { select
       });
       output.push(prefix + group.map(() => `╭${'─'.repeat(Math.max(0, boxWidth - 2))}╮`).join('  '));
       for (let line = 0; line < 3; line++) output.push(prefix + group.map((node, i) =>
-        `│ ${paint(interiors[i][line], line === 1 ? colors[node.state] : line === 2 ? 244 : 252, color)} │`).join('  '));
+        `│ ${paint(interiors[i][line], line === 1 ? colors[node.state] : undefined, color)} │`).join('  '));
       output.push(prefix + group.map(() => `╰${'─'.repeat(Math.max(0, boxWidth - 2))}╯`).join('  '));
-      if (offset + perRow < row.length) output.push(paint(`  · ${t(language, 'sameFrontier')}`, 244, color));
+      if (offset + perRow < row.length) output.push(`  · ${t(language, 'sameFrontier')}`);
       previous = positions;
     }
   }
@@ -182,11 +182,11 @@ function descendantLines(task, tasks, language, timing, columns) {
 
 function detailBox(text, columns, color, selected, label) {
   const inner = Math.max(1, columns - 4);
-  const border = selected ? palette.accent : palette.muted;
+  const border = selected ? accent : undefined;
   const title = label !== undefined && columns >= 7 ? `─ ${fit(label, columns - 6)} ` : '';
   return [paint(`╭${title}${'─'.repeat(Math.max(0, columns - 2 - width(title)))}╮`, border, color),
     ...text.flatMap((line, index) => wrap(line, inner).map(part =>
-      `${paint('│', border, color)} ${paint(fit(part, inner, true), index === 0 && selected ? palette.accent : palette.text, color)} ${paint('│', border, color)}`)),
+      `${paint('│', border, color)} ${paint(fit(part, inner, true), index === 0 && selected ? accent : undefined, color)} ${paint('│', border, color)}`)),
     paint(`╰${'─'.repeat(Math.max(0, columns - 2))}╯`, border, color)];
 }
 
@@ -221,7 +221,7 @@ export function renderFrame(state, { columns = 54, rows = 48, runIndex = 0, scro
   const switcher = tasksView ? (all.length ? `  t DAG (${all.length})` : '') : `  t ${tasksTitle}`;
   const activeRuns = all.filter(candidate => candidate.status === 'running' || candidate.nodes.some(node => node.state === 'running'));
   const completedRuns = all.filter(candidate => !activeRuns.includes(candidate));
-  const head = [paint(fit(`OMO  /  ${tasksView ? t(language, 'tasks') : 'DAG'}${switcher}`, columns), palette.accent, color),
+  const head = [paint(fit(`OMO  /  ${tasksView ? t(language, 'tasks') : 'DAG'}${switcher}`, columns), accent, color),
     fit(tasksView ? tasksTitle : `${t(language, 'selectedRun', { name: run.name })} · ${t(language, 'activeRuns', { count: activeRuns.length })}`, columns)];
   const body = [], nodeRanges = Object.create(null), taskRanges = Object.create(null);
   if (error) body.push(t(language, 'readError', { error: clean(error) }), t(language, 'keepLast'), '');
@@ -237,10 +237,10 @@ export function renderFrame(state, { columns = 54, rows = 48, runIndex = 0, scro
     if (!roots.length) body.push(t(language, 'none'));
   } else if (run && !tasksView) {
     if (all.length > 1) {
-      body.push(paint(t(language, 'activeRuns', { count: activeRuns.length }), palette.accent, color));
+      body.push(paint(t(language, 'activeRuns', { count: activeRuns.length }), accent, color));
       const showCompleted = completedExpanded || !activeRuns.includes(run);
-      for (const candidate of [...activeRuns, ...(showCompleted ? completedRuns : [])]) body.push(paint(runSummary(candidate, language, columns, candidate.id === run.id), candidate.id === run.id ? palette.accent : palette.text, color));
-      if (completedRuns.length) body.push(paint(`${t(language, 'completedRuns', { count: completedRuns.length })} ${showCompleted ? '[-]' : '[+]'}`, palette.muted, color));
+      for (const candidate of [...activeRuns, ...(showCompleted ? completedRuns : [])]) body.push(paint(runSummary(candidate, language, columns, candidate.id === run.id), candidate.id === run.id ? accent : undefined, color));
+      if (completedRuns.length) body.push(`${t(language, 'completedRuns', { count: completedRuns.length })} ${showCompleted ? '[-]' : '[+]'}`);
       body.push('');
     }
     const done = run.nodes.filter(n => n.state === 'completed').length;
@@ -277,7 +277,7 @@ export function renderFrame(state, { columns = 54, rows = 48, runIndex = 0, scro
     return width(line) <= columns ? line : fit(line, columns);
   });
   while (visible.length < available) visible.push('');
-  const foot = [paint('─'.repeat(columns), 240, color),
+  const foot = ['─'.repeat(columns),
     fit(notice || `${state?.connected ? `● ${t(language, 'connected')}` : `○ ${t(language, 'disconnected')}`}${body.length > available ? `  ${start + 1}–${Math.min(start + available, body.length)}/${body.length}` : ''}`, columns),
     ...(showCloseHint ? [fit(t(language, 'closeHint'), columns)] : []),
     fit(t(language, 'nodeControls'), columns),

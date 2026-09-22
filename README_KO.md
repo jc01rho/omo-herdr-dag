@@ -74,11 +74,11 @@ node scripts/install.mjs
 
 런타임 npm 의존성은 없습니다. Windows 테스트는 개발 전용 `node-pty` ConPTY 브리지를 사용하며, POSIX 테스트에는 Python 3와 Unix PTY가 필요합니다. `--dry-run`은 파일을 변경하지 않고 설치 위치만 출력합니다. 소스 설치 프로그램에서도 `--lang en` 또는 `--lang ko`를 사용할 수 있습니다.
 
-설치 위치는 `--agent-dir`, `OMO_CODING_AGENT_DIR`, `SENPI_CODING_AGENT_DIR` 순으로 선택하며, 모두 없으면 `~/.omo/agent`를 사용합니다. 예를 들어 `OMO_CODING_AGENT_DIR=~/.omo`이면 진입점은 `~/.omo/extensions/herdr-dag.js`입니다. 기본 대체 경로의 구조는 다음과 같습니다.
+설치 위치는 `--agent-dir`, `OMO_CODING_AGENT_DIR`, `SENPI_CODING_AGENT_DIR` 순으로 선택하며, 모두 없으면 `~/.omo/agent`를 사용합니다. 예를 들어 `OMO_CODING_AGENT_DIR=~/.omo`이면 진입점은 `~/.omo/extensions/omo-herdr-dag.js`입니다. 기본 대체 경로의 구조는 다음과 같습니다.
 
 ```text
 ~/.omo/agent/
-├── extensions/herdr-dag.js          # 확장 진입점
+├── extensions/omo-herdr-dag.js      # 확장 진입점
 └── herdr-dag/integration/
     ├── current.json                # 현재 설치 세대
     └── generation-000001/           # 확장, src/, locale.json, LICENSE
@@ -146,7 +146,7 @@ q를 눌러 닫아도 됩니다.
 
 `install --lang ko`로 선택한 언어는 현재 설치 세대의 `locale.json`에 저장됩니다. 설치 결과의 `integration`이 해당 경로이며, `integration/current.json`에 현재 세대가 기록됩니다. 다른 `--lang` 값을 지정하지 않으면 업데이트 때도 유지합니다. 영어로 되돌리려면 `install --lang en`을 실행하세요. 환경 변수 설정이 저장된 언어보다 우선하며, 지원하지 않는 환경 변수 값은 영어로 처리합니다.
 
-Herdr는 각 pane에 `HERDR_ENV`, `HERDR_PANE_ID`, `HERDR_SOCKET_PATH`를 제공합니다. 이 환경 밖에서는 확장이 비활성 상태를 유지합니다. 다른 pane을 대상으로 삼기 위해 이 변수들을 수동으로 설정하지 마세요.
+Herdr는 각 pane에 `HERDR_ENV`, `HERDR_PANE_ID`, `HERDR_SOCKET_PATH`를 제공합니다. 확장은 그 소켓 경로가 실제로 존재하고, `herdr` 실행 파일도 있어야 활성화됩니다. `HERDR_BIN_PATH`가 존재하는 파일이면 그것을 쓰고, 없거나 ` (deleted)`처럼 잘못된 경로이면 `PATH`의 `herdr`를 찾습니다. 이전 Herdr 세션에서 남은 환경 변수만으로는 viewer를 열지 않습니다. 다른 pane을 대상으로 삼기 위해 이 변수들을 수동으로 설정하지 마세요.
 
 `omob` 같은 독립 실행 빌드에서도 viewer용 Node.js 24 이상을 별도로 설치해야 합니다. 확장은 pane을 열기 전에 런타임을 검증하며, `node`가 버전 관리자의 shim인 경우에도 실제 Node 실행 파일 경로를 확인합니다. 컴파일된 OmO 바이너리로 viewer를 실행하지 않습니다. 경로를 직접 지정하려면 `OMO_HERDR_DAG_NODE=/absolute/path/to/node omob`로 시작하세요. 명시한 경로가 유효하지 않으면 다른 런타임으로 대체하지 않고 경고합니다.
 
@@ -160,9 +160,9 @@ Snapshot은 로컬 JSON 파일입니다. 세션·실행 ID, 이름, 노드 이�
 
 ## 업데이트와 제거
 
-업데이트하려면 `npx omo-herdr-dag@latest install`을 다시 실행하면 업데이트됩니다. 소스로 설치했다면 새 소스를 받은 뒤 설치 프로그램을 다시 실행하세요. 매 설치마다 새 세대 디렉터리를 만들어 `/reload`가 캐시된 이전 내부 모듈 대신 새 코드를 읽게 합니다. 이전 세대는 백업으로 유지하고, 구형 단일 디렉터리 설치본은 백업 경로로 이동합니다. 런타임 기록과 언어 선택은 유지합니다. 설치본은 원본 소스 디렉터리나 npm 캐시와 독립적으로 동작합니다. 이미 실행 중인 OmO 세션에서는 `/reload`를 실행하세요. UI 변경을 적용하려면 기존 viewer 프로세스도 다시 실행해야 합니다.
+업데이트하려면 `npx omo-herdr-dag@latest install`을 다시 실행하면 업데이트됩니다. 소스로 설치했다면 새 소스를 받은 뒤 설치 프로그램을 다시 실행하세요. 매 설치마다 새 세대 디렉터리를 만들어 `/reload`가 캐시된 이전 내부 모듈 대신 새 코드를 읽게 합니다. 이전 세대는 백업으로 유지하고, 구형 단일 디렉터리 설치본은 백업 경로로 이동합니다. 이 설치 프로그램이 만든 `extensions/herdr-dag.js`도 다시 설치할 때 삭제합니다. Senpi는 로드된 `herdr-*.js`를 사용자 Herdr 리포터로 보고 내장 에이전트 표시를 건너뛰므로, 진입점은 `extensions/omo-herdr-dag.js`입니다. 런타임 기록과 언어 선택은 유지합니다. 설치본은 원본 소스 디렉터리나 npm 캐시와 독립적으로 동작합니다. 이미 실행 중인 OmO 세션에서는 `/reload`를 실행하세요. UI 변경을 적용하려면 기존 viewer 프로세스도 다시 실행해야 합니다.
 
-제거하려면 `~/.omo/agent/extensions/herdr-dag.js`를 삭제하고 OmO를 재로딩하거나 재시작하세요. 기존 DAG pane은 직접 닫아 주세요. `~/.omo/agent/herdr-dag/`는 기록으로 보관하거나 별도로 삭제할 수 있습니다. 다른 에이전트 디렉터리에 설치했다면 해당 디렉터리의 진입점을 제거하세요.
+제거하려면 `~/.omo/agent/extensions/omo-herdr-dag.js`를 삭제하세요. 이전 설치가 `extensions/herdr-dag.js`를 남겼다면 그것도 삭제한 뒤 OmO를 재로딩하거나 재시작하세요. 기존 DAG pane은 직접 닫아 주세요. `~/.omo/agent/herdr-dag/`는 기록으로 보관하거나 별도로 삭제할 수 있습니다. 다른 에이전트 디렉터리에 설치했다면 해당 디렉터리의 진입점을 제거하세요.
 
 ## 자주 묻는 질문 (FAQ)
 
@@ -177,9 +177,9 @@ Snapshot은 로컬 JSON 파일입니다. 세션·실행 ID, 이름, 노드 이�
 | Herdr가 설치되지 않음 | 확장은 설치할 수 있지만, 일반 터미널에서는 비활성 상태를 유지합니다. |
 | Herdr가 설치되어 있어도 일반 터미널에서 OmO 실행 | 확장은 비활성화되고 `/dag-pane`도 등록되지 않습니다. Herdr 앱이 열려 있는 것만으로는 활성화되지 않습니다. |
 | Herdr pane 안에서 OmO 실행 | 확장이 활성화되고 `/dag-pane`을 등록하며, workflow DAG가 도착하면 viewer를 엽니다. |
-| Herdr 환경 변수는 있지만 CLI나 소켓을 사용할 수 없음 | Pane 조작에 실패하면 경고를 표시합니다. OmO 대화는 계속할 수 있습니다. |
+| Herdr 환경 변수는 있지만 소켓이나 `herdr` 실행 파일이 없음 | 확장은 비활성 상태를 유지하고 `/dag-pane`을 등록하지 않으며 pane 명령도 시도하지 않습니다. |
 
-Herdr가 제공하는 `HERDR_ENV=1`과 값이 있는 `HERDR_PANE_ID`, `HERDR_SOCKET_PATH`가 모두 있어야 활성화됩니다. 비활성 세션에서는 DAG 이벤트를 구독하거나 viewer pane을 열지 않습니다. Viewer를 사용하려면 환경 변수를 수동으로 지정하지 말고 Herdr pane 안에서 새 OmO 세션을 시작하세요.
+활성화에는 `HERDR_ENV=1`, 값이 있는 `HERDR_PANE_ID`와 `HERDR_SOCKET_PATH`, 그 경로의 실제 소켓, 그리고 찾을 수 있는 `herdr` 실행 파일이 필요합니다. 비활성 세션에서는 DAG 이벤트를 구독하거나 viewer pane을 열지 않습니다. Viewer를 사용하려면 환경 변수를 수동으로 지정하지 말고 Herdr pane 안에서 새 OmO 세션을 시작하세요.
 
 ### Herdr에 OmO를 커스텀 에이전트로 등록해야 하나요?
 

@@ -74,11 +74,11 @@ node scripts/install.mjs
 
 There are no runtime npm dependencies. Windows tests use the development-only `node-pty` ConPTY bridge; POSIX tests use Python 3 and a Unix PTY. `--dry-run` prints the destinations without changing files. The source installer also accepts `--lang en` or `--lang ko`.
 
-The installer uses `--agent-dir`, then `OMO_CODING_AGENT_DIR`, then `SENPI_CODING_AGENT_DIR`, falling back to `~/.omo/agent`. For example, with `OMO_CODING_AGENT_DIR=~/.omo`, the entry is `~/.omo/extensions/herdr-dag.js`, not `~/.omo/agent/extensions/herdr-dag.js`. The default fallback layout is:
+The installer uses `--agent-dir`, then `OMO_CODING_AGENT_DIR`, then `SENPI_CODING_AGENT_DIR`, falling back to `~/.omo/agent`. For example, with `OMO_CODING_AGENT_DIR=~/.omo`, the entry is `~/.omo/extensions/omo-herdr-dag.js`, not `~/.omo/agent/extensions/omo-herdr-dag.js`. The default fallback layout is:
 
 ```text
 ~/.omo/agent/
-├── extensions/herdr-dag.js          # Extension entry point
+├── extensions/omo-herdr-dag.js      # Extension entry point
 └── herdr-dag/integration/
     ├── current.json                # Active installation generation
     └── generation-000001/           # Extension, src/, locale.json, LICENSE
@@ -146,7 +146,7 @@ You may keep the snapshot open for reference or press `q` to close the viewer an
 
 `install --lang ko` saves the selection in the active generation's `locale.json`. The installer prints that directory as `integration`; `integration/current.json` identifies the current generation. Updates retain the language unless you pass another `--lang` value. Use `install --lang en` to switch back to English. The environment override takes precedence; unsupported override values fall back to English.
 
-Herdr supplies `HERDR_ENV`, `HERDR_PANE_ID`, and `HERDR_SOCKET_PATH` to its panes. Outside that environment, the extension stays inactive. Do not set those variables manually to target another pane. When supplied, `HERDR_BIN_PATH` selects Herdr's executable directly; otherwise it is resolved on `PATH`.
+Herdr supplies `HERDR_ENV`, `HERDR_PANE_ID`, and `HERDR_SOCKET_PATH` to its panes. The extension also requires that socket path to exist and a real `herdr` executable (`HERDR_BIN_PATH` when it is an existing file, otherwise `herdr` on `PATH`). Leftover environment from a previous Herdr session, including a `HERDR_BIN_PATH` that ends with ` (deleted)`, does not activate the viewer. Do not set those variables manually to target another pane.
 
 Standalone builds such as `omob` still need a separate Node.js 24+ installation for the viewer. The extension checks the runtime before opening a pane and resolves the actual Node executable, including when `node` is a version-manager shim. It does not launch the viewer through the compiled OmO binary. To select Node explicitly, start OmO with `OMO_HERDR_DAG_NODE=/absolute/path/to/node omob`. An invalid explicit path produces a warning instead of falling back to another runtime.
 
@@ -160,9 +160,9 @@ Without a saved choice, running tasks expand automatically and every other state
 
 ## Update and uninstall
 
-To update, run `npx omo-herdr-dag@latest install` again. For a source installation, obtain the new source and rerun the installer. Each installation creates a fresh generation directory, so `/reload` loads new transitive modules rather than cached code. Previous generations remain as backups; legacy flat installations are moved to a backup directory. Runtime records and language are preserved. The installed copy is independent of the source checkout or npm cache. Run `/reload` in existing OmO sessions afterward. Existing viewer processes also need restarting to load UI changes.
+To update, run `npx omo-herdr-dag@latest install` again. For a source installation, obtain the new source and rerun the installer. Each installation creates a fresh generation directory, so `/reload` loads new transitive modules rather than cached code. Previous generations remain as backups; legacy flat installations are moved to a backup directory. Reinstalling also deletes `extensions/herdr-dag.js` when this installer created it. Senpi treats a loaded `herdr-*.js` file as a user Herdr reporter and then skips its built-in agent presence, so the entry point is `extensions/omo-herdr-dag.js`. Runtime records and language are preserved. The installed copy is independent of the source checkout or npm cache. Run `/reload` in existing OmO sessions afterward. Existing viewer processes also need restarting to load UI changes.
 
-To uninstall, remove `~/.omo/agent/extensions/herdr-dag.js`, then reload or restart OmO. Close any existing DAG panes yourself. You may keep `~/.omo/agent/herdr-dag/` as a record, or remove it separately. For a custom installation, remove the entry point from that agent directory instead.
+To uninstall, remove `~/.omo/agent/extensions/omo-herdr-dag.js`. Also remove `extensions/herdr-dag.js` if an older install left it there, then reload or restart OmO. Close any existing DAG panes yourself. You may keep `~/.omo/agent/herdr-dag/` as a record, or remove it separately. For a custom installation, remove the entry point from that agent directory instead.
 
 ## FAQ
 
@@ -177,9 +177,9 @@ It is an **OmO extension**. The installer places it in OmO's agent directory, wh
 | Herdr is not installed | You can install the extension, but it stays inactive in an ordinary terminal. |
 | Herdr is installed, but OmO runs in an ordinary terminal | The extension stays inactive and does not register `/dag-pane`. Having the Herdr application open is not enough. |
 | OmO runs inside a Herdr pane | The extension activates, registers `/dag-pane`, and opens the viewer when a workflow DAG arrives. |
-| Herdr environment variables are present, but its CLI or socket is unavailable | A pane operation reports a warning when it fails. You can continue the OmO conversation. |
+| Herdr environment variables are present, but the socket or `herdr` executable is missing | The extension stays inactive and does not register `/dag-pane` or attempt pane commands. |
 
-Activation requires `HERDR_ENV=1` and nonempty `HERDR_PANE_ID` and `HERDR_SOCKET_PATH`, supplied by Herdr. Inactive sessions do not subscribe to DAG updates or open viewer panes. To use the viewer, start a new OmO session inside a Herdr pane rather than setting these variables manually.
+Activation requires `HERDR_ENV=1`, nonempty `HERDR_PANE_ID` and `HERDR_SOCKET_PATH`, a live socket at that path, and a resolvable `herdr` binary. Inactive sessions do not subscribe to DAG updates or open viewer panes. To use the viewer, start a new OmO session inside a Herdr pane rather than setting these variables manually.
 
 ### Must I register OmO as a custom agent in Herdr?
 

@@ -46,7 +46,7 @@ try {
   const command = [cli, 'install', '--agent-dir', agent];
   const plan = JSON.parse(run(process.execPath, [...command, '--dry-run'], temp));
   assert.deepEqual(JSON.parse(run(process.execPath, [...command, '--dry-run'], temp)), plan);
-  assert.equal(plan.extension, join(agent, 'extensions/herdr-dag.js'));
+  assert.equal(plan.extension, join(agent, 'extensions/omo-herdr-dag.js'));
   assert.equal(dirname(plan.integration), join(agent, 'herdr-dag/integration'));
   assert.equal(plan.language, 'en');
   assert.doesNotMatch(plan.activation, /[가-힣]/);

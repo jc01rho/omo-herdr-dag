@@ -52,8 +52,8 @@ for (const primary of ['OMO_CODING_AGENT_DIR', 'SENPI_CODING_AGENT_DIR']) {
     const selected = install('--dry-run');
     const overridden = install('--agent-dir', explicit);
     // Then both entrypoints are in the directories actually discovered by OmO.
-    assert.equal(selected.extension, join(active, 'extensions', 'herdr-dag.js'));
-    assert.equal(overridden.extension, join(explicit, 'extensions', 'herdr-dag.js'));
+    assert.equal(selected.extension, join(active, 'extensions', 'omo-herdr-dag.js'));
+    assert.equal(overridden.extension, join(explicit, 'extensions', 'omo-herdr-dag.js'));
     assert.equal(install().extension, selected.extension);
   });
 }

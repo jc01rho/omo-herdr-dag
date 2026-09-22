@@ -3,12 +3,12 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
 import { DagPane } from './src/controller.mjs';
-import { createHerdr } from './src/herdr.mjs';
+import { createHerdr, herdrSession } from './src/herdr.mjs';
 import { resolveViewerNode } from './src/runtime.mjs';
 import { t, languageOf } from './src/i18n.mjs';
 
 export default function extension(pi) {
-  if (process.env.HERDR_ENV !== '1' || !process.env.HERDR_PANE_ID || !process.env.HERDR_SOCKET_PATH) return;
+  if (!herdrSession()) return;
   let installedLanguage = 'en';
   try { installedLanguage = JSON.parse(readFileSync(new URL('./locale.json', import.meta.url), 'utf8')).language; }
   catch (error) { if (error.code !== 'ENOENT') console.warn(`DAG pane: Cannot read locale configuration: ${error.message}`); }

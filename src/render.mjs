@@ -199,6 +199,15 @@ function taskCard(task, tasks, columns, color, language, timing, { selected, exp
   return detailBox(text, columns, color, selected, node?.label ?? node?.id);
 }
 
+const RUN_SELECTOR_LIMIT = 5;
+
+function visibleRunSelector(runs, selectedId) {
+  if (runs.length <= RUN_SELECTOR_LIMIT) return runs;
+  const selected = Math.max(0, runs.findIndex(run => run.id === selectedId));
+  const start = Math.min(Math.max(0, selected - RUN_SELECTOR_LIMIT + 1), runs.length - RUN_SELECTOR_LIMIT);
+  return runs.slice(start, start + RUN_SELECTOR_LIMIT);
+}
+
 function runSummary(run, language, columns, selected) {
   const total = run.nodes.length;
   const running = run.nodes.filter(node => node.state === 'running').length;
@@ -239,7 +248,8 @@ export function renderFrame(state, { columns = 54, rows = 48, runIndex = 0, scro
     if (all.length > 1) {
       body.push(paint(t(language, 'activeRuns', { count: activeRuns.length }), accent, color));
       const showCompleted = completedExpanded || !activeRuns.includes(run);
-      for (const candidate of [...activeRuns, ...(showCompleted ? completedRuns : [])]) body.push(paint(runSummary(candidate, language, columns, candidate.id === run.id), candidate.id === run.id ? accent : undefined, color));
+      const selectorRuns = visibleRunSelector([...activeRuns, ...(showCompleted ? completedRuns : [])], run.id);
+      for (const candidate of selectorRuns) body.push(paint(runSummary(candidate, language, columns, candidate.id === run.id), candidate.id === run.id ? accent : undefined, color));
       if (completedRuns.length) body.push(`${t(language, 'completedRuns', { count: completedRuns.length })} ${showCompleted ? '[-]' : '[+]'}`);
       body.push('');
     }

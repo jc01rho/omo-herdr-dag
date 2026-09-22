@@ -73,6 +73,23 @@ test('multi-run summaries expose immutable counts, active selection identity, an
   assert.doesNotMatch(frame.text, /1\/2/);
 });
 
+test('run selector shows at most five rows while keeping the selected run visible', () => {
+  const runs = Array.from({ length: 12 }, (_, index) => ({
+    id: `run-${index}`, name: `RUN_${index}`, status: 'running',
+    nodes: [{ id: 'node', label: `NODE_${index}`, state: 'running' }], edges: [],
+  }));
+  const state = { connected: true, runs };
+  const summaries = text => text.split('\n').filter(line => /^\s*>? RUN_\d+  /.test(line));
+  const first = renderFrame(state, { columns: 80, rows: 40, color: false, runIndex: 0 });
+  assert.deepEqual(summaries(first.text), ['> RUN_0  0/1 total · 1 running · 0 waiting', '  RUN_1  0/1 total · 1 running · 0 waiting',
+    '  RUN_2  0/1 total · 1 running · 0 waiting', '  RUN_3  0/1 total · 1 running · 0 waiting', '  RUN_4  0/1 total · 1 running · 0 waiting']);
+  const middle = renderFrame(state, { columns: 80, rows: 40, color: false, runIndex: 8 });
+  assert.equal(summaries(middle.text).length, 5);
+  assert.ok(summaries(middle.text).some(line => line.startsWith('> RUN_8  ')));
+  assert.ok(middle.text.includes('RUN_4') && middle.text.includes('RUN_7'));
+  assert.doesNotMatch(middle.text, /^\s+RUN_9  /m);
+});
+
 test('compact cards share four safe lines, localized counts, selected-only detail, and temporary collapse override', () => {
   const progress = `PROGRESS_HEAD ${'한글🙂 useful work '.repeat(20)} PROGRESS_TAIL`;
   const state = { connected: true, runs: [], tasks: [

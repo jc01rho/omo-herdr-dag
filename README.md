@@ -133,7 +133,7 @@ When the OmO session ends, the last graph remains visible with a disconnected in
 You can close this pane with q.
 ```
 
-You may keep the snapshot open for reference or press `q` to close the viewer and its generated pane. Closing the viewer does not cancel workflow tasks or delete the saved snapshot. The close hint appears only while disconnected; it does not mean every workflow task completed successfully.
+You may keep the snapshot open for reference or press `q` to close the viewer and its generated pane. Closing the viewer does not cancel workflow tasks or delete the saved snapshot. Expired snapshots are pruned from the state directory when the extension starts; see `OMO_HERDR_DAG_RETENTION_DAYS` under Configuration. The close hint appears only while disconnected; it does not mean every workflow task completed successfully.
 
 ## Configuration and local data
 
@@ -143,6 +143,7 @@ You may keep the snapshot open for reference or press `q` to close the viewer an
 | `OMO_HERDR_DAG_TASK_STATE_DIR` | `<project>/.omo/senpi-task/` | OmO task store root, containing `tasks/`. Set this to the same directory when using a custom OmO `task.state_dir`. |
 | `OMO_HERDR_DAG_LANG` | Saved installation language, initially `en` | Override the interface language with `en` or `ko`. Set before starting OmO or reloading the extension. |
 | `OMO_HERDR_DAG_NODE` | Validated host Node, otherwise `node` on `PATH` | Node.js 24+ executable for the viewer. Set before starting OmO; paths containing spaces are supported. |
+| `OMO_HERDR_DAG_RETENTION_DAYS` | `14` | Days before startup prunes expired snapshots and pane records from the state directory. The current session's files are always kept; `0` or an invalid value disables pruning. Set before starting OmO or reloading the extension. |
 
 `install --lang ko` saves the selection in the active generation's `locale.json`. The installer prints that directory as `integration`; `integration/current.json` identifies the current generation. Updates retain the language unless you pass another `--lang` value. Use `install --lang en` to switch back to English. The environment override takes precedence; unsupported override values fall back to English.
 

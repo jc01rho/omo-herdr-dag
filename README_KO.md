@@ -74,11 +74,11 @@ node scripts/install.mjs
 
 런타임 npm 의존성은 없습니다. Windows 테스트는 개발 전용 `node-pty` ConPTY 브리지를 사용하며, POSIX 테스트에는 Python 3와 Unix PTY가 필요합니다. `--dry-run`은 파일을 변경하지 않고 설치 위치만 출력합니다. 소스 설치 프로그램에서도 `--lang en` 또는 `--lang ko`를 사용할 수 있습니다.
 
-설치 위치는 `--agent-dir`, `OMO_CODING_AGENT_DIR`, `SENPI_CODING_AGENT_DIR` 순으로 선택하며, 모두 없으면 `~/.omo/agent`를 사용합니다. 예를 들어 `OMO_CODING_AGENT_DIR=~/.omo`이면 진입점은 `~/.omo/extensions/herdr-dag.js`입니다. 기본 대체 경로의 구조는 다음과 같습니다.
+설치 위치는 `--agent-dir`, `OMO_CODING_AGENT_DIR`, `SENPI_CODING_AGENT_DIR` 순으로 선택하며, 모두 없으면 `~/.omo/agent`를 사용합니다. 예를 들어 `OMO_CODING_AGENT_DIR=~/.omo`이면 진입점은 `~/.omo/extensions/omo-herdr-dag.js`입니다. 기본 대체 경로의 구조는 다음과 같습니다.
 
 ```text
 ~/.omo/agent/
-├── extensions/herdr-dag.js          # 확장 진입점
+├── extensions/omo-herdr-dag.js      # 확장 진입점
 └── herdr-dag/integration/
     ├── current.json                # 현재 설치 세대
     └── generation-000001/           # 확장, src/, locale.json, LICENSE
@@ -160,9 +160,9 @@ Snapshot은 로컬 JSON 파일입니다. 세션·실행 ID, 이름, 노드 이�
 
 ## 업데이트와 제거
 
-업데이트하려면 `npx omo-herdr-dag@latest install`을 다시 실행하면 업데이트됩니다. 소스로 설치했다면 새 소스를 받은 뒤 설치 프로그램을 다시 실행하세요. 매 설치마다 새 세대 디렉터리를 만들어 `/reload`가 캐시된 이전 내부 모듈 대신 새 코드를 읽게 합니다. 이전 세대는 백업으로 유지하고, 구형 단일 디렉터리 설치본은 백업 경로로 이동합니다. 런타임 기록과 언어 선택은 유지합니다. 설치본은 원본 소스 디렉터리나 npm 캐시와 독립적으로 동작합니다. 이미 실행 중인 OmO 세션에서는 `/reload`를 실행하세요. UI 변경을 적용하려면 기존 viewer 프로세스도 다시 실행해야 합니다.
+업데이트하려면 `npx omo-herdr-dag@latest install`을 다시 실행하면 업데이트됩니다. 소스로 설치했다면 새 소스를 받은 뒤 설치 프로그램을 다시 실행하세요. 매 설치마다 새 세대 디렉터리를 만들어 `/reload`가 캐시된 이전 내부 모듈 대신 새 코드를 읽게 합니다. 이전 세대는 백업으로 유지하고, 구형 단일 디렉터리 설치본은 백업 경로로 이동합니다. 이 설치 프로그램이 만든 `extensions/herdr-dag.js`도 다시 설치할 때 삭제합니다. Senpi는 로드된 `herdr-*.js`를 사용자 Herdr 리포터로 보고 내장 에이전트 표시를 건너뛰므로, 진입점은 `extensions/omo-herdr-dag.js`입니다. 런타임 기록과 언어 선택은 유지합니다. 설치본은 원본 소스 디렉터리나 npm 캐시와 독립적으로 동작합니다. 이미 실행 중인 OmO 세션에서는 `/reload`를 실행하세요. UI 변경을 적용하려면 기존 viewer 프로세스도 다시 실행해야 합니다.
 
-제거하려면 `~/.omo/agent/extensions/herdr-dag.js`를 삭제하고 OmO를 재로딩하거나 재시작하세요. 기존 DAG pane은 직접 닫아 주세요. `~/.omo/agent/herdr-dag/`는 기록으로 보관하거나 별도로 삭제할 수 있습니다. 다른 에이전트 디렉터리에 설치했다면 해당 디렉터리의 진입점을 제거하세요.
+제거하려면 `~/.omo/agent/extensions/omo-herdr-dag.js`를 삭제하세요. 이전 설치가 `extensions/herdr-dag.js`를 남겼다면 그것도 삭제한 뒤 OmO를 재로딩하거나 재시작하세요. 기존 DAG pane은 직접 닫아 주세요. `~/.omo/agent/herdr-dag/`는 기록으로 보관하거나 별도로 삭제할 수 있습니다. 다른 에이전트 디렉터리에 설치했다면 해당 디렉터리의 진입점을 제거하세요.
 
 ## 자주 묻는 질문 (FAQ)
 

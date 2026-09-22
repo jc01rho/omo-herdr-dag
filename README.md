@@ -74,11 +74,11 @@ node scripts/install.mjs
 
 There are no runtime npm dependencies. Windows tests use the development-only `node-pty` ConPTY bridge; POSIX tests use Python 3 and a Unix PTY. `--dry-run` prints the destinations without changing files. The source installer also accepts `--lang en` or `--lang ko`.
 
-The installer uses `--agent-dir`, then `OMO_CODING_AGENT_DIR`, then `SENPI_CODING_AGENT_DIR`, falling back to `~/.omo/agent`. For example, with `OMO_CODING_AGENT_DIR=~/.omo`, the entry is `~/.omo/extensions/herdr-dag.js`, not `~/.omo/agent/extensions/herdr-dag.js`. The default fallback layout is:
+The installer uses `--agent-dir`, then `OMO_CODING_AGENT_DIR`, then `SENPI_CODING_AGENT_DIR`, falling back to `~/.omo/agent`. For example, with `OMO_CODING_AGENT_DIR=~/.omo`, the entry is `~/.omo/extensions/omo-herdr-dag.js`, not `~/.omo/agent/extensions/omo-herdr-dag.js`. The default fallback layout is:
 
 ```text
 ~/.omo/agent/
-├── extensions/herdr-dag.js          # Extension entry point
+├── extensions/omo-herdr-dag.js      # Extension entry point
 └── herdr-dag/integration/
     ├── current.json                # Active installation generation
     └── generation-000001/           # Extension, src/, locale.json, LICENSE
@@ -160,9 +160,9 @@ Without a saved choice, running tasks expand automatically and every other state
 
 ## Update and uninstall
 
-To update, run `npx omo-herdr-dag@latest install` again. For a source installation, obtain the new source and rerun the installer. Each installation creates a fresh generation directory, so `/reload` loads new transitive modules rather than cached code. Previous generations remain as backups; legacy flat installations are moved to a backup directory. Runtime records and language are preserved. The installed copy is independent of the source checkout or npm cache. Run `/reload` in existing OmO sessions afterward. Existing viewer processes also need restarting to load UI changes.
+To update, run `npx omo-herdr-dag@latest install` again. For a source installation, obtain the new source and rerun the installer. Each installation creates a fresh generation directory, so `/reload` loads new transitive modules rather than cached code. Previous generations remain as backups; legacy flat installations are moved to a backup directory. Reinstalling also deletes `extensions/herdr-dag.js` when this installer created it. Senpi treats a loaded `herdr-*.js` file as a user Herdr reporter and then skips its built-in agent presence, so the entry point is `extensions/omo-herdr-dag.js`. Runtime records and language are preserved. The installed copy is independent of the source checkout or npm cache. Run `/reload` in existing OmO sessions afterward. Existing viewer processes also need restarting to load UI changes.
 
-To uninstall, remove `~/.omo/agent/extensions/herdr-dag.js`, then reload or restart OmO. Close any existing DAG panes yourself. You may keep `~/.omo/agent/herdr-dag/` as a record, or remove it separately. For a custom installation, remove the entry point from that agent directory instead.
+To uninstall, remove `~/.omo/agent/extensions/omo-herdr-dag.js`. Also remove `extensions/herdr-dag.js` if an older install left it there, then reload or restart OmO. Close any existing DAG panes yourself. You may keep `~/.omo/agent/herdr-dag/` as a record, or remove it separately. For a custom installation, remove the entry point from that agent directory instead.
 
 ## FAQ
 

@@ -39,7 +39,7 @@ To verify the installed extension entry point:
 
 ```bash
 node scripts/verify-native.mjs "$OMO_PACKAGE_ROOT" \
-  --extension "$HOME/.omo/agent/extensions/herdr-dag.js"
+  --extension "$HOME/.omo/agent/extensions/omo-herdr-dag.js"
 ```
 
 For installer changes, test a temporary `--agent-dir` before installing into your active OmO environment. Check both a new installation and an update, and verify that unrelated files and runtime records remain intact.

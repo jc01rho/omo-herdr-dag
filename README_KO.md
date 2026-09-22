@@ -133,7 +133,7 @@ OmO 세션이 종료되면 마지막 그래프를 유지하고, 연결 종료 �
 q를 눌러 닫아도 됩니다.
 ```
 
-기본 영어 화면에는 `You can close this pane with q.`가 표시됩니다. 결과를 더 확인하려면 그대로 두고, 확인을 마쳤다면 `q`를 눌러 viewer와 자동 생성된 pane을 닫으세요. Viewer를 닫아도 workflow 작업을 취소하거나 저장된 snapshot을 삭제하지 않습니다. 이 안내는 연결이 종료됐을 때만 표시되며, 모든 workflow 작업이 성공했다는 뜻은 아닙니다.
+기본 영어 화면에는 `You can close this pane with q.`가 표시됩니다. 결과를 더 확인하려면 그대로 두고, 확인을 마쳤다면 `q`를 눌러 viewer와 자동 생성된 pane을 닫으세요. Viewer를 닫아도 workflow 작업을 취소하거나 저장된 snapshot을 삭제하지 않습니다. 만료된 snapshot은 확장 시작 시 상태 디렉터리에서 정리되며, 자세한 내용은 설정 항목의 `OMO_HERDR_DAG_RETENTION_DAYS`를 참고하세요. 이 안내는 연결이 종료됐을 때만 표시되며, 모든 workflow 작업이 성공했다는 뜻은 아닙니다.
 
 ## 설정과 로컬 데이터
 
@@ -143,6 +143,7 @@ q를 눌러 닫아도 됩니다.
 | `OMO_HERDR_DAG_TASK_STATE_DIR` | `<프로젝트>/.omo/senpi-task/` | `tasks/`를 포함하는 OmO task 저장소 경로. OmO의 `task.state_dir`을 변경했다면 같은 경로로 지정합니다. |
 | `OMO_HERDR_DAG_LANG` | 설치 시 저장한 언어, 최초 `en` | `en` 또는 `ko`로 인터페이스 언어를 덮어씁니다. OmO 시작 또는 확장 재로딩 전에 설정합니다. |
 | `OMO_HERDR_DAG_NODE` | 검증한 호스트 Node, 없으면 `PATH`의 `node` | Viewer를 실행할 Node.js 24+ 실행 파일. OmO 시작 전에 설정하며 공백이 있는 경로도 지원합니다. |
+| `OMO_HERDR_DAG_RETENTION_DAYS` | `14` | 시작 시 상태 디렉터리에서 만료된 snapshot과 pane 기록을 정리하기까지의 일수. 현재 세션의 파일은 항상 보존하며 `0` 또는 잘못된 값은 정리를 비활성화합니다. OmO 시작 또는 확장 재로딩 전에 설정합니다. |
 
 `install --lang ko`로 선택한 언어는 현재 설치 세대의 `locale.json`에 저장됩니다. 설치 결과의 `integration`이 해당 경로이며, `integration/current.json`에 현재 세대가 기록됩니다. 다른 `--lang` 값을 지정하지 않으면 업데이트 때도 유지합니다. 영어로 되돌리려면 `install --lang en`을 실행하세요. 환경 변수 설정이 저장된 언어보다 우선하며, 지원하지 않는 환경 변수 값은 영어로 처리합니다.
 

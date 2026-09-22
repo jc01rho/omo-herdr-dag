@@ -1,7 +1,8 @@
 import { createHash } from 'node:crypto';
 import { readdir } from 'node:fs/promises';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import { readJson, writeJson } from './storage.mjs';
+import { pruneExpiredSnapshots, retentionDaysFromEnv } from './retention.mjs';
 import { shellCommand } from './herdr.mjs';
 import { normalizeRun, sessionRuns } from './model.mjs';
 import { t, languageOf } from './i18n.mjs';
@@ -25,13 +26,15 @@ function missingPane(error) {
 }
 
 export class DagPane {
-  constructor({ sessionId, parentPane, socket, stateDir, cwd, node, viewer, herdr, notify = () => {}, language = 'en', taskStateDir }) {
-    Object.assign(this, { sessionId, parentPane, cwd, node, viewer, herdr, notify });
+  constructor({ sessionId, parentPane, socket, stateDir, cwd, node, viewer, herdr, notify = () => {}, language = 'en', taskStateDir, retentionDays }) {
+    Object.assign(this, { sessionId, parentPane, stateDir, cwd, node, viewer, herdr, notify });
     this.language = languageOf(language);
     this.key = viewKey(socket, parentPane, sessionId);
     this.stateFile = join(stateDir, `${this.key}.json`);
     this.recordFile = join(stateDir, `${this.key}.pane.json`);
     this.checkpointDir = join(taskStateDir ?? join(cwd, '.omo', 'senpi-task'), 'dag', 'runs');
+    // Explicit option wins so tests need not mutate the shared process environment.
+    this.retentionDays = retentionDays ?? retentionDaysFromEnv();
     this.queue = Promise.resolve();
     this.runs = [];
     this.stopped = false;
@@ -58,6 +61,10 @@ export class DagPane {
 
   start() {
     return this.enqueue(async () => {
+      // Housekeeping precedes restore so a fresh pane never lists pruned snapshots.
+      await pruneExpiredSnapshots(this.stateDir, {
+        keepFiles: [basename(this.stateFile), basename(this.recordFile), `${basename(this.stateFile)}.view.json`],
+        days: this.retentionDays, notify: message => this.notify(t(this.language, 'pruneFailed', { error: message })) });
       const state = await readJson(this.stateFile);
       if (state?.sessionId === this.sessionId) {
         this.runs = state.runs ?? [];

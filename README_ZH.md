@@ -36,7 +36,7 @@
 
 **此扩展不要求在 Herdr 中注册自定义 OmO agent。** 打开一个普通的 Herdr 终端 pane 并自行运行 `omo` 即可。扩展使用 pane ID 和普通的 `herdr pane` 命令；不调用 `herdr agent start`，也不依赖侧边栏的 agent 识别。
 
-该架构支持上述方式，但**尚未**在全新、未修改的 Herdr 安装上完成端到端验证。具体的验证覆盖范围见[验证与兼容性](VERIFICATION.md)。Windows PowerShell 的 viewer 启动和真实已保存 workflow 的渲染已在本地验证；原生 macOS 尚未验证。Windows pane 应使用 PowerShell，而不是 cmd.exe 或 Git Bash。
+该架构支持上述方式，且已在原生 macOS 上、于全新且未修改的 Herdr 安装中完成端到端验证；更早之前在 Windows PowerShell 上验证过 viewer 启动与真实渲染。具体的验证覆盖范围和仍未覆盖的部分见[验证与兼容性](VERIFICATION.md)。Windows pane 应使用 PowerShell，而不是 cmd.exe 或 Git Bash。
 
 ## 安装
 

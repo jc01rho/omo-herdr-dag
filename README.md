@@ -36,7 +36,7 @@ The screenshots show the **English** interface, which is the default for new ins
 
 **Custom OmO agent registration in Herdr is not required by this extension.** Open a normal Herdr terminal pane and run `omo` yourself. The extension uses pane IDs and ordinary `herdr pane` commands; it does not call `herdr agent start` or depend on sidebar agent recognition.
 
-The architecture supports that setup, but a clean, unmodified Herdr installation has **not yet been verified end to end**. See [verification and compatibility](VERIFICATION.md) for the exact coverage. Windows PowerShell viewer launch and real saved-workflow rendering have been verified locally; native macOS remains unverified. Windows panes are expected to use PowerShell, not cmd.exe or Git Bash.
+The architecture supports that setup, and it has since been verified end to end on a clean, unmodified Herdr installation on native macOS; live pane creation and rendering were verified earlier on Windows PowerShell. See [verification and compatibility](VERIFICATION.md) for the exact coverage and the remaining limits. Windows panes are expected to use PowerShell, not cmd.exe or Git Bash.
 
 ## Install
 

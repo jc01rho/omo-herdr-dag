@@ -36,7 +36,7 @@
 
 **이 확장은 Herdr에 OmO를 커스텀 에이전트로 등록할 필요가 없습니다.** Herdr의 일반 터미널 pane에서 `omo`를 직접 실행하면 됩니다. 확장은 pane ID와 일반 `herdr pane` 명령을 사용하며, `herdr agent start`나 사이드바의 에이전트 인식에 의존하지 않습니다.
 
-구조상 이 방식으로 사용할 수 있지만, **커스텀 설정이 없는 순정 Herdr에서의 전체 동작은 아직 검증하지 않았습니다.** 정확한 확인 범위는 [검증 및 호환성 기록](VERIFICATION.md)을 참고하세요. Windows PowerShell에서 viewer 실행과 실제 저장된 workflow 표시는 로컬 검증했습니다. 네이티브 macOS는 아직 검증하지 않았습니다. Windows pane의 셸은 cmd.exe나 Git Bash가 아닌 PowerShell을 전제로 합니다.
+구조상 이 방식으로 사용할 수 있으며, 커스텀 설정이 없는 순정 Herdr 설치에서 네이티브 macOS 기준으로 전체 동작을 검증했습니다. Windows PowerShell에서는 viewer 실행과 실제 렌더링을 앞서 검증했습니다. 정확한 확인 범위와 남은 제한은 [검증 및 호환성 기록](VERIFICATION.md)을 참고하세요. Windows pane의 셸은 cmd.exe나 Git Bash가 아닌 PowerShell을 전제로 합니다.
 
 ## 설치
 

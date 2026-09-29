@@ -53,6 +53,7 @@ The first installation defaults to English. To choose Korean or Simplified Chine
 
 ```bash
 npx omo-herdr-dag@latest install --lang ko
+npx omo-herdr-dag@latest install --lang zh-cn
 ```
 
 To explicitly select English, including when switching back from Korean or Simplified Chinese, use `npx omo-herdr-dag@latest install --lang en`. Updates keep the saved language unless you select another one.

@@ -49,13 +49,14 @@ npx omo-herdr-dag@latest install --dry-run
 npx omo-herdr-dag@latest install
 ```
 
-최초 설치 언어는 영어입니다. 한국어를 사용하려면 다음과 같이 설치하세요.
+최초 설치 언어는 영어입니다. 한국어 또는 중국어 간체를 사용하려면 다음과 같이 설치하세요.
 
 ```bash
 npx omo-herdr-dag@latest install --lang ko
+npx omo-herdr-dag@latest install --lang zh-cn
 ```
 
-한국어에서 영어로 되돌리는 경우를 포함해 영어를 명시적으로 선택하려면 `npx omo-herdr-dag@latest install --lang en`을 실행하세요. 다른 언어를 지정하지 않으면 업데이트 때도 기존 선택을 유지합니다.
+한국어 또는 중국어 간체에서 영어로 되돌리는 경우를 포함해 영어를 명시적으로 선택하려면 `npx omo-herdr-dag@latest install --lang en`을 실행하세요. 다른 언어를 지정하지 않으면 업데이트 때도 기존 선택을 유지합니다.
 
 `npm install -g omo-herdr-dag`로 CLI를 설치한 다음 `omo-herdr-dag install`을 실행할 수도 있습니다. npm 패키지를 받는 것만으로 OmO 설정이 변경되지는 않습니다. 명시적인 `install` 명령이 확장을 복사합니다. Herdr와 OmO는 별도로 설치해야 합니다.
 
@@ -141,7 +142,7 @@ q를 눌러 닫아도 됩니다.
 | --- | --- | --- |
 | `OMO_HERDR_DAG_STATE_DIR` | `~/.omo/agent/herdr-dag/` | snapshot과 pane 기록의 저장 위치. OmO 시작 전에 설정합니다. |
 | `OMO_HERDR_DAG_TASK_STATE_DIR` | `<프로젝트>/.omo/senpi-task/` | `tasks/`를 포함하는 OmO task 저장소 경로. OmO의 `task.state_dir`을 변경했다면 같은 경로로 지정합니다. |
-| `OMO_HERDR_DAG_LANG` | 설치 시 저장한 언어, 최초 `en` | `en` 또는 `ko`로 인터페이스 언어를 덮어씁니다. OmO 시작 또는 확장 재로딩 전에 설정합니다. |
+| `OMO_HERDR_DAG_LANG` | 설치 시 저장한 언어, 최초 `en` | `en`, `ko`, `zh-cn`으로 인터페이스 언어를 덮어씁니다. OmO 시작 또는 확장 재로딩 전에 설정합니다. |
 | `OMO_HERDR_DAG_NODE` | 검증한 호스트 Node, 없으면 `PATH`의 `node` | Viewer를 실행할 Node.js 24+ 실행 파일. OmO 시작 전에 설정하며 공백이 있는 경로도 지원합니다. |
 | `OMO_HERDR_DAG_RETENTION_DAYS` | `14` | 시작 시 상태 디렉터리에서 만료된 snapshot과 pane 기록을 정리하기까지의 일수. 현재 세션의 파일은 항상 보존하며 `0` 또는 잘못된 값은 정리를 비활성화합니다. OmO 시작 또는 확장 재로딩 전에 설정합니다. |
 

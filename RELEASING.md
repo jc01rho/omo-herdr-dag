@@ -8,7 +8,7 @@ The repository produces the dependency-free [omo-herdr-dag npm package](https://
 - `dist/`: the extension, TUI, installer, and MIT license, assembled by `npm run build`.
 - Package metadata, license, and documentation.
 
-Source tests, development scripts, GitHub configuration, and runtime state are excluded by the npm `files` allowlist. The package has no dependency install hooks. The explicit CLI command installs the extension; it defaults to English on a new installation and supports `--lang ko`.
+Source tests, development scripts, GitHub configuration, and runtime state are excluded by the npm `files` allowlist. The package has no dependency install hooks. The explicit CLI command installs the extension; it defaults to English on a new installation and supports `--lang ko` and `--lang zh-cn`.
 
 ## GitHub Actions
 
@@ -45,7 +45,7 @@ mkdir -p .artifacts
 npm pack --pack-destination .artifacts
 ```
 
-The package smoke test checks an actual tarball in a temporary project, using offline npm installation. It checks the executable, English default, Korean selection, dry-run behavior, installed extension imports, MIT notice, and update preservation.
+The package smoke test checks an actual tarball in a temporary project, using offline npm installation. It checks the executable, English default, Korean and Simplified Chinese selection, dry-run behavior, installed extension imports, MIT notice, and update preservation.
 
 ## Configure npm authentication once
 

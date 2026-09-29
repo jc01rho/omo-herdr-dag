@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { messages, languageOf, t } from '../src/i18n.mjs';
-import { render, width } from '../src/render.mjs';
+import { render, width, fit } from '../src/render.mjs';
 import { sessionRuns } from '../src/model.mjs';
 import { payload, sessionId } from './fixtures.mjs';
 
@@ -32,6 +32,9 @@ test('Korean and Simplified Chinese remain available without translating user-de
   assert.match(chineseFrame, /运行中 · 已完成 1\/5/);
   assert.match(chineseFrame, /依赖关系/);
   assert.match(chineseFrame, /Analyze/);
+  assert.equal(width('依赖关系'), 8);
+  assert.equal(width('运行中 · 已完成 1/5'), 19);
+  assert.equal(fit('依赖关系', 5), '依赖…');
   for (const language of ['en', 'ko', 'zh-cn']) for (const columns of [12, 35, 54, 81]) {
     const lines = render(chinese, { language, columns, rows: 24 }).split('\n');
     assert.equal(lines.length, 24);

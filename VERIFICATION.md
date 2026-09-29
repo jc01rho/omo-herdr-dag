@@ -59,6 +59,6 @@ The standalone `omob` launcher issue was fixed by resolving and probing a separa
 - **Native macOS:** unverified. Windows coverage is limited to the local PowerShell/Herdr environment described above; Windows panes using cmd.exe or Git Bash are not supported by the Windows command builder.
 - **Other OmO/Senpi versions:** unverified. Internal event contracts may change; the current source-level verifier is specific to the inspected beta.42 bundle.
 - **CI:** a Linux matrix for Node 24 and 26 runs tests, builds, npm package checks, and artifact upload. Hosted CI and the release workflow's manual npm dry run have passed in the public repository; actual npm publication requires separate authentication.
-- **Interface language:** English is now the default. Korean is selectable through `install --lang ko` or `OMO_HERDR_DAG_LANG=ko`. Both English and Korean README files are provided. The earlier live-pane baseline above used the original Korean interface.
+- **Interface language:** English is now the default. Korean and Simplified Chinese are selectable through `install --lang ko` / `--lang zh-cn` or `OMO_HERDR_DAG_LANG=ko` / `=zh-cn`. English, Korean, and Simplified Chinese README files are provided. The earlier live-pane baseline above used the original Korean interface.
 
 Use [CONTRIBUTING.md](CONTRIBUTING.md) to reproduce the checks. Add new compatibility evidence only after running the relevant environment, and omit private hostnames, session IDs, and local account paths from public results.

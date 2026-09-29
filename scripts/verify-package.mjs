@@ -75,6 +75,7 @@ try {
   const chinese = JSON.parse(run(process.execPath, [...command, '--lang', 'zh-cn'], temp));
   assert.equal(chinese.language, 'zh-cn');
   assert.match(chinese.activation, /会话/);
+  assert.equal(JSON.parse(run(process.execPath, [...command, '--dry-run'], temp)).language, 'zh-cn');
   assert.equal(JSON.parse(await readFile(join(chinese.integration, 'locale.json'), 'utf8')).language, 'zh-cn');
   // Exercise npm's executable discovery, the same mechanism used by npx.
   const output = run('npm', ['exec', '--offline', '--yes', '--prefix', consumer, '--', 'omo-herdr-dag', '--version'], consumer);

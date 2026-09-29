@@ -1,6 +1,6 @@
 # Contributing
 
-Bug reports and pull requests are welcome. Keep changes focused, describe the behavior they change, and keep [README.md](README.md) and [README_KO.md](README_KO.md) consistent for user-facing changes.
+Bug reports and pull requests are welcome. Keep changes focused, describe the behavior they change, and keep [README.md](README.md), [README_KO.md](README_KO.md), and [README_ZH.md](README_ZH.md) consistent for user-facing changes.
 
 ## Local development
 

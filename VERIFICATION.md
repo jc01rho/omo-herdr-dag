@@ -10,6 +10,7 @@ This record separates observed behavior from integration assumptions. The baseli
 | Two additional Linux x86_64 hosts, Node 26.7.0 | 10 behavior tests passed on each host; source and installed extension entry points passed installed-loader and RPC bus checks. No live panes were created on those hosts. |
 | OmO `5.0.0-0.beta.42`, Senpi `2026.9.4-3` | The snapshot producer, RPC projection, and shared event bus contract were inspected in the installed packages. |
 | Herdr protocol 20 | Its pane CLI was exercised in an environment with custom OmO agent reporting. |
+| Native macOS 15.8 (24H23) arm64, Node 24.21.0, OmO `5.0.1`, Senpi `2026.9.27`, Herdr 0.9.1 (protocol 22) | 98 tests, the syntax-checking build, and the offline package smoke check passed. Simplified Chinese was exercised end to end through the real OmO path: pane creation, live task card, focus preservation, disconnected snapshot, and `q` cleanup. The scripted verifier does not run against this OmO build. |
 
 ## Observed behavior
 
@@ -48,16 +49,28 @@ The Windows PowerShell port and follow-up error-preservation fix passed 80 tests
 
 Native PowerShell and ConPTY were not rerun by the Linux reviewer; those results remain limited to the contributor's Windows environment described above. Windows development tests require Bash on PATH in addition to the development-only ConPTY bridge. These requirements do not add runtime npm dependencies to the installed viewer. English README screenshots were updated in the same integrated source baseline.
 
+## Simplified Chinese verification on native macOS (2026-09-29)
+
+macOS 15.8 (build 24H23) on arm64 (Apple M3), Node 24.21.0, OmO 5.0.1, Senpi 2026.9.27, and Herdr 0.9.1 at protocol 22, with an **unmodified** Herdr: no custom OmO agent registration was added, and Herdr's integrations page listed only its own built-in agents.
+
+`npm run check` passed 98 tests, the syntax-checking build, and the offline npm package smoke check. That smoke check now also asserts the explicit `--lang zh-cn` installation and that the selection survives a later plain install. Installing with `--lang zh-cn` produced a Simplified Chinese interface in the requesting session and recorded `language: "zh-cn"` in the installed `locale.json`.
+
+The installed extension was exercised through the manual live-pane path. With OmO running inside a real Herdr pane, `/dag-pane` created the viewer as a sibling pane at the requested ratio and showed the connected indicator. The empty state, task list, dependency labels, and key hints rendered in Simplified Chinese with correct double-width alignment. A real background subtask dispatched from that same session appeared in the viewer as a live task card carrying its status, category, agent/model, and elapsed time, and the card updated while the task ran. Exiting the OmO session left the viewer showing the localized disconnected notice and snapshot; `q` closed the pane and the source pane kept focus throughout.
+
+The viewer requires Node 24 or later. On this host the pane shell's `node` was 23.11.0, so `OMO_HERDR_DAG_NODE` had to point at a 24 binary; without it the extension's existing guard reports the requirement in the selected language and does not open a pane.
+
+The scripted checks in `scripts/verify-native.mjs` could not be used on this host. Both paths fail against OmO 5.0.1 / Senpi 2026.9.27 **identically on untouched `v1.4.0`**: the non-live path at line 59, before any state file exists, and the live path at line 79 with zero pane records — while the same installed extension works through the real OmO path described above. As this document notes, those source assertions are bound to the beta.42 bundle. Its `OMO_PACKAGE_ROOT` layout also expects `<root>/node_modules/@code-yeongyu/senpi` and `<root>/plugin` in one directory, which a hoisted npm/Bun installation does not provide; pointing it at a directory of symlinks to both real locations is what let it reach the assertions at all.
+
 ## Current limits
 
 The earlier release baseline passed 20 behavior tests. Version 1.1.0 extends that coverage as described above. The package smoke check installs the actual tarball offline and verifies CLI execution, language selection and persistence, installer dry-run, extension imports, updates, and the MIT notice. These checks do not replace the live compatibility limits below.
 
 The standalone `omob` launcher issue was fixed by resolving and probing a separate Node.js 24+ runtime instead of using the compiled OmO executable as an interpreter. Regression checks cover a compiled host path, normal Node hosts, explicit overrides, unsupported runtimes, and failure before pane creation. After installing the fix, the viewer rendered the reported state using `--once` with a simulated compiled-host executable path and the real Node 24.14.0 fallback. The installed Senpi loader and RPC bus checks also passed. These checks did not restart the active `omob` session or verify its compiled extension loader end to end.
 
-- **Unmodified Herdr without custom OmO registration:** the implementation only uses ordinary pane commands and does not require agent recognition. A clean installation has not yet been tested end to end.
+- **Unmodified Herdr without custom OmO registration:** the implementation only uses ordinary pane commands and does not require agent recognition. A clean installation was exercised end to end on macOS with Herdr 0.9.1 (2026-09-29, see above).
 - **Real workflow production path:** existing-workflow recovery and live task detail display were verified for 1.1.0. A fresh complete workflow and live progress from newly launched nested children remain unverified end to end.
-- **Native macOS:** unverified. Windows coverage is limited to the local PowerShell/Herdr environment described above; Windows panes using cmd.exe or Git Bash are not supported by the Windows command builder.
-- **Other OmO/Senpi versions:** unverified. Internal event contracts may change; the current source-level verifier is specific to the inspected beta.42 bundle.
+- **Native macOS:** verified on 2026-09-29 for macOS 15.8 / arm64 through the real OmO path rather than the scripted harness (see above). Windows coverage is limited to the local PowerShell/Herdr environment described above; Windows panes using cmd.exe or Git Bash are not supported by the Windows command builder.
+- **Other OmO/Senpi versions:** unverified in general. Internal event contracts may change; the current source-level verifier is specific to the inspected beta.42 bundle and does not run against OmO 5.0.1 / Senpi 2026.9.27, although the installed extension worked through the real OmO path on that combination.
 - **CI:** a Linux matrix for Node 24 and 26 runs tests, builds, npm package checks, and artifact upload. Hosted CI and the release workflow's manual npm dry run have passed in the public repository; actual npm publication requires separate authentication.
 - **Interface language:** English is now the default. Korean and Simplified Chinese are selectable through `install --lang ko` / `--lang zh-cn` or `OMO_HERDR_DAG_LANG=ko` / `=zh-cn`. English, Korean, and Simplified Chinese README files are provided. The earlier live-pane baseline above used the original Korean interface.
 

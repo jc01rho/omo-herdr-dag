@@ -51,6 +51,9 @@ test('each install has unique dependency paths, with retained generations, local
   const english = install('--lang', 'en');
   assert.equal(english.language, 'en');
   assert.equal(install('--dry-run').language, 'en');
+  const chinese = install('--lang', 'zh-cn');
+  assert.equal(chinese.language, 'zh-cn');
+  assert.equal(JSON.parse(await readFile(join(chinese.integration, 'locale.json'), 'utf8')).language, 'zh-cn');
 });
 
 test('dry-run on a new agent is deterministic and creates nothing', async t => {

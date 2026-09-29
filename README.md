@@ -2,7 +2,7 @@
 
 **Live OmO workflow DAGs in a Herdr side pane.**
 
-English | [한국어](README_KO.md)
+English | [한국어](README_KO.md) | [简体中文](README_ZH.md)
 
 `omo-herdr-dag` is an [OmO](https://github.com/code-yeongyu/oh-my-openagent) extension that opens a dedicated TUI in [Herdr](https://herdr.dev/) when a workflow DAG appears. Follow dependencies and node states beside your conversation, with focus kept in the original pane.
 
@@ -10,7 +10,7 @@ English | [한국어](README_KO.md)
 
 *An integration review in progress: `navigation`, `gate-wiring`, and `test-coverage` run in parallel; `verify-evidence` depends on all three. The right pane shows node states, dependencies, and task details beside the conversation.*
 
-The screenshots show the **English** interface, which is the default for new installations; select Korean with `--lang ko`. Node labels come from your workflow and are displayed unchanged. The viewer also shows an explicit close hint after disconnection.
+The screenshots show the **English** interface, which is the default for new installations; select Korean with `--lang ko` or Simplified Chinese with `--lang zh-cn`. Node labels come from your workflow and are displayed unchanged. The viewer also shows an explicit close hint after disconnection.
 
 ## Features
 
@@ -49,13 +49,13 @@ npx omo-herdr-dag@latest install --dry-run
 npx omo-herdr-dag@latest install
 ```
 
-The first installation defaults to English. To choose Korean:
+The first installation defaults to English. To choose Korean or Simplified Chinese:
 
 ```bash
 npx omo-herdr-dag@latest install --lang ko
 ```
 
-To explicitly select English, including when switching back from Korean, use `npx omo-herdr-dag@latest install --lang en`. Updates keep the saved language unless you select another one.
+To explicitly select English, including when switching back from Korean or Simplified Chinese, use `npx omo-herdr-dag@latest install --lang en`. Updates keep the saved language unless you select another one.
 
 You can also install the CLI globally with `npm install -g omo-herdr-dag`, then run `omo-herdr-dag install`. Fetching the npm package alone does not modify your OmO configuration; the explicit `install` command copies the extension into place. Herdr and OmO remain separate prerequisites.
 
@@ -72,7 +72,7 @@ node scripts/install.mjs --dry-run
 node scripts/install.mjs
 ```
 
-There are no runtime npm dependencies. Windows tests use the development-only `node-pty` ConPTY bridge; POSIX tests use Python 3 and a Unix PTY. `--dry-run` prints the destinations without changing files. The source installer also accepts `--lang en` or `--lang ko`.
+There are no runtime npm dependencies. Windows tests use the development-only `node-pty` ConPTY bridge; POSIX tests use Python 3 and a Unix PTY. `--dry-run` prints the destinations without changing files. The source installer also accepts `--lang en`, `--lang ko`, or `--lang zh-cn`.
 
 The installer uses `--agent-dir`, then `OMO_CODING_AGENT_DIR`, then `SENPI_CODING_AGENT_DIR`, falling back to `~/.omo/agent`. For example, with `OMO_CODING_AGENT_DIR=~/.omo`, the entry is `~/.omo/extensions/omo-herdr-dag.js`, not `~/.omo/agent/extensions/omo-herdr-dag.js`. The default fallback layout is:
 
@@ -141,7 +141,7 @@ You may keep the snapshot open for reference or press `q` to close the viewer an
 | --- | --- | --- |
 | `OMO_HERDR_DAG_STATE_DIR` | `~/.omo/agent/herdr-dag/` | Directory for snapshots and pane records. Set before starting OmO. |
 | `OMO_HERDR_DAG_TASK_STATE_DIR` | `<project>/.omo/senpi-task/` | OmO task store root, containing `tasks/`. Set this to the same directory when using a custom OmO `task.state_dir`. |
-| `OMO_HERDR_DAG_LANG` | Saved installation language, initially `en` | Override the interface language with `en` or `ko`. Set before starting OmO or reloading the extension. |
+| `OMO_HERDR_DAG_LANG` | Saved installation language, initially `en` | Override the interface language with `en`, `ko`, or `zh-cn`. Set before starting OmO or reloading the extension. |
 | `OMO_HERDR_DAG_NODE` | Validated host Node, otherwise `node` on `PATH` | Node.js 24+ executable for the viewer. Set before starting OmO; paths containing spaces are supported. |
 | `OMO_HERDR_DAG_RETENTION_DAYS` | `14` | Days before startup prunes expired snapshots and pane records from the state directory. The current session's files are always kept; `0` or an invalid value disables pruning. Set before starting OmO or reloading the extension. |
 

@@ -50,7 +50,7 @@ test('standalone tasks are separate from every DAG, respect explicit folds, and 
   assert.ok(!dag.includes('ROOT_SENTINEL'));
   state.runs = [];
   assert.deepEqual(state, original);
-  for (const columns of [8, 20, 35, 54, 80]) for (const language of ['en', 'ko']) {
+  for (const columns of [8, 20, 35, 54, 80]) for (const language of ['en', 'ko', 'zh-cn']) {
     const text = render(state, { ...options, columns, language });
     assert.ok(text.split('\n').every(line => width(line) < columns), `${language}: ${columns}`);
   }

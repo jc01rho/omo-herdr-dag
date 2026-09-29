@@ -72,10 +72,14 @@ try {
   const english = JSON.parse(run(process.execPath, [...command, '--lang', 'en'], temp));
   assert.equal(JSON.parse(await readFile(join(english.integration, 'locale.json'), 'utf8')).language, 'en');
   assert.equal(JSON.parse(await readFile(join(korean.integration, 'locale.json'), 'utf8')).language, 'ko');
+  const chinese = JSON.parse(run(process.execPath, [...command, '--lang', 'zh-cn'], temp));
+  assert.equal(chinese.language, 'zh-cn');
+  assert.match(chinese.activation, /会话/);
+  assert.equal(JSON.parse(await readFile(join(chinese.integration, 'locale.json'), 'utf8')).language, 'zh-cn');
   // Exercise npm's executable discovery, the same mechanism used by npx.
   const output = run('npm', ['exec', '--offline', '--yes', '--prefix', consumer, '--', 'omo-herdr-dag', '--version'], consumer);
   assert.equal(output.trim(), pkg.version);
-  console.log(`PASS: ${packed.filename} (${paths.size} files); offline npm install, CLI, deterministic dry-run, extension import, MIT notice, isolated generation updates/backups, retained runtime records, English default, Korean selection, and npm exec.`);
+  console.log(`PASS: ${packed.filename} (${paths.size} files); offline npm install, CLI, deterministic dry-run, extension import, MIT notice, isolated generation updates/backups, retained runtime records, English default, Korean and Simplified Chinese selection, and npm exec.`);
 } catch (error) {
   if (error.stdout) console.error(String(error.stdout));
   if (error.stderr) console.error(String(error.stderr));

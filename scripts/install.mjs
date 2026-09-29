@@ -30,7 +30,7 @@ let savedLanguage;
 try { savedLanguage = JSON.parse(await readFile(join(previous, 'locale.json'), 'utf8')).language; }
 catch (error) { if (error.code !== 'ENOENT') throw error; }
 const languageArg = process.argv.includes('--lang') ? process.argv[process.argv.indexOf('--lang') + 1] : undefined;
-if (process.argv.includes('--lang') && !['en', 'ko'].includes(languageArg)) throw new Error('--lang must be en or ko.');
+if (process.argv.includes('--lang') && !['en', 'ko', 'zh-cn'].includes(languageArg)) throw new Error('--lang must be en, ko, or zh-cn.');
 const language = languageArg ?? languageOf(savedLanguage);
 try {
   const current = await readFile(wrapper, 'utf8');

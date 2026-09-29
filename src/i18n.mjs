@@ -59,9 +59,39 @@ export const messages = {
     unmanagedDirectory: '관리 대상이 아닌 폴더입니다: {path}',
     activation: '새 OmO 세션 또는 /reload',
   },
+  'zh-cn': {
+    pending: '待处理', blocked: '被阻塞', scheduled: '已排期', running: '运行中', paused: '已暂停',
+    completed: '已完成', failed: '失败', cancelled: '已取消', skipped: '已跳过',
+    error: '错误', interrupted: '已中断', lost: '丢失', tasks: '任务', category: '分类',
+    startNode: '起始节点', sameFrontier: '同一执行层', emptyTitle: '下一个 workflow DAG 将显示在这里。',
+    readError: '读取错误：{error}', keepLast: '保留最后一份正常快照。',
+    doneCount: '已完成 {done}/{total}', failedCount: '失败 {count}', graphError: '图形错误：{error}',
+    dependencies: '依赖关系', none: '无', waiting: '等待 DAG',
+    waitingLine1: 'OmO workflow 的更新', waitingLine2: '会自动显示在此 pane 中。',
+    connected: '已连接', disconnected: '连接断开 · 快照已保存', controls: '↑↓ 滚动  ←→ 切换运行  q 关闭',
+    closeHint: '可以按 q 关闭此 pane。',
+    nodeControls: 'Tab/n 下一个  Shift-Tab/p 上一个', toggleControls: 'Space/Enter 折叠  d 详情',
+    compactHours: '{count}小时', compactMinutes: '{count}分', compactSeconds: '{count}秒',
+    compactTurns: '{count} 轮', compactTools: '{count} 次工具调用',
+    details: '节点详情', activeRuns: '进行中的运行：{count}', completedRuns: '已完成的运行（{count}）', total: '总数', runningCount: '{count} 个运行中', waitingCount: '{count} 个等待中', selectedRun: '选中的运行：{name}', toggleCompleted: '已完成', noData: '暂无数据', task: '任务', description: '描述',
+    agent: '代理', model: '模型', progress: '进度', turns: '轮数', toolCalls: '工具调用',
+    startedAt: '开始时间', completedAt: '完成时间', taskStatus: '任务状态', elapsed: '耗时',
+    descendants: '子任务（父子关系，非依赖）', viewError: '视图偏好：{error}',
+    stateMissing: '状态文件缺失。', closeFailed: '关闭 pane 失败：{error}',
+    snapshotFormat: '不支持的 OmO DAG 快照格式。', cycle: '检测到循环依赖。',
+    incompletePane: '请检查并关闭 pane {pane} 中未完成的 viewer，然后重新运行 /dag-pane。',
+    pruneFailed: '清理过期快照失败：{error}',
+    missingPaneId: 'Herdr split 响应中没有 pane ID。',
+    nodeUnavailable: 'DAG viewer 需要 Node.js 24 或更高版本。请在 PATH 上安装 node，或将 OMO_HERDR_DAG_NODE 指向 Node 可执行文件，然后重新运行 /dag-pane。',
+    commandDescription: '打开或重新打开当前会话的 DAG pane',
+    unavailable: '当前会话中无法使用 DAG pane。',
+    existingFile: '拒绝覆盖无关的用户文件：{path}',
+    unmanagedDirectory: '此目录不受 omo-herdr-dag 管理：{path}',
+    activation: '启动新的 OmO 会话或运行 /reload',
+  },
 };
 
-export const languageOf = value => value === 'ko' ? 'ko' : 'en';
+export const languageOf = value => value === 'ko' ? 'ko' : value === 'zh-cn' ? 'zh-cn' : 'en';
 export function t(language, key, values = {}) {
   const template = messages[languageOf(language)][key];
   if (template === undefined) throw new Error(`Unknown translation key: ${key}`);

@@ -5,7 +5,7 @@ const args = process.argv.slice(2);
 const help = `omo-herdr-dag — install the OmO DAG viewer for Herdr
 
 Usage:
-  omo-herdr-dag install [--dry-run] [--agent-dir PATH] [--lang en|ko]
+  omo-herdr-dag install [--dry-run] [--agent-dir PATH] [--lang en|ko|zh-cn]
   omo-herdr-dag --help
   omo-herdr-dag --version
 
@@ -28,7 +28,7 @@ try {
         if (!args[i + 1] || args[i + 1].startsWith('-')) throw new Error('--agent-dir requires a path.');
         i++;
       } else if (args[i] === '--lang') {
-        if (!['en', 'ko'].includes(args[i + 1])) throw new Error('--lang must be en or ko.');
+        if (!['en', 'ko', 'zh-cn'].includes(args[i + 1])) throw new Error('--lang must be en, ko, or zh-cn.');
         i++;
       } else throw new Error(`Unknown option: ${args[i]}. Use --help.`);
     }

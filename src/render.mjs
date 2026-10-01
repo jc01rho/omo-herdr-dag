@@ -28,6 +28,51 @@ export function fit(text, columns, pad = false) {
   if (truncated) { out += '…'; used += 1; }
   return out + (pad ? ' '.repeat(Math.max(0, columns - used)) : '');
 }
+// Streamed output grows at its end, so keep the newest characters visible.
+export function fitTail(text, columns) {
+  text = clean(text);
+  if (columns <= 0) return '';
+  if (width(text) <= columns) return text;
+  const kept = [];
+  let used = 1;
+  for (const segment of [...segmenter.segment(text)].map(part => part.segment).reverse()) {
+    const size = width(segment);
+    if (used + size > columns) break;
+    kept.unshift(segment); used += size;
+  }
+  return `…${kept.join('')}`;
+}
+// A token phase with no new token, or a request with no first token, for this
+// long suggests a stalled model call. Tools may legitimately run for minutes.
+export const STALL_TOKEN_MS = 30000;
+export const STALL_WAIT_MS = 90000;
+const activityMarks = { text: '✎', thinking: '💭', toolArgs: '⚙', waiting: '⏳', tool: '▶', retry: '↻' };
+const tokenPhases = new Set(['text', 'thinking', 'toolArgs']);
+function compactDuration(language, ms) {
+  const seconds = Math.max(0, Math.floor(ms / 1000));
+  const hours = Math.floor(seconds / 3600), minutes = Math.floor(seconds / 60) % 60;
+  return [hours ? t(language, 'compactHours', { count: hours }) : '',
+    hours || minutes ? t(language, 'compactMinutes', { count: minutes }) : '',
+    t(language, 'compactSeconds', { count: seconds % 60 })].filter(Boolean).join(' ');
+}
+// Liveness of a running task's model call: which phase it is in, how long ago
+// it last produced output, and whether that gap looks stalled.
+export function activitySummary(task, language, now = Date.now()) {
+  const activity = task?.status === 'running' ? task.activity : undefined;
+  if (!activity || !activityMarks[activity.phase] || !Number.isFinite(activity.since) || !Number.isFinite(activity.lastAt)) return null;
+  const tokens = tokenPhases.has(activity.phase);
+  const gap = now - activity.lastAt, span = now - activity.since;
+  const stalled = tokens ? gap >= STALL_TOKEN_MS : activity.phase === 'waiting' && span >= STALL_WAIT_MS;
+  const tool = activity.tool ? clean(activity.tool) : '';
+  let label;
+  if (tokens) label = [activity.phase === 'toolArgs' ? tool : '', gap < 2000 ? t(language, 'activityNow') :
+    t(language, 'activityAgo', { time: compactDuration(language, gap) })].filter(Boolean).join(' ');
+  else if (activity.phase === 'waiting') label = t(language, 'activityWaiting', { time: compactDuration(language, span) });
+  else if (activity.phase === 'tool') label = t(language, 'activityTool', { tool: tool || '?', time: compactDuration(language, span) });
+  else label = t(language, 'activityRetry', { attempt: activity.attempt ?? '?', max: activity.maxAttempts ?? '?', time: compactDuration(language, span) });
+  return { head: stalled ? `⚠ ${t(language, 'activityStalled')} · ${label}` : `${activityMarks[activity.phase]} ${label}`,
+    text: tokens && typeof activity.text === 'string' ? clean(activity.text) : '', stalled };
+}
 const icons = { pending: '○', blocked: '◌', scheduled: '◷', running: '●', paused: 'Ⅱ', completed: '✓', failed: '×', cancelled: '−', skipped: '·', error: '×', interrupted: '−', lost: '?' };
 const colors = { running: '36', completed: '32', failed: '31', blocked: '33', paused: '33', scheduled: '36', error: '31' };
 const accent = '36';
@@ -40,8 +85,9 @@ export function standaloneTasks(state) {
     .sort((a, b) => Number(b.status === 'running') - Number(a.status === 'running') || a.id.localeCompare(b.id));
 }
 
-export function graphLines(run, columns, color = true, language = 'en', { selectedNodeId, viewState } = {}) {
+export function graphLines(run, columns, color = true, language = 'en', { selectedNodeId, viewState, tasks = [], now = Date.now() } = {}) {
   const output = [];
+  const stalledNodes = new Set();
   const rows = layers(run, language);
   let previous = [];
   const glyphs = { 1: '│', 2: '─', 3: '└', 4: '│', 5: '│', 6: '┌', 7: '├', 8: '─', 9: '┘', 10: '─', 11: '┴', 12: '┐', 13: '┤', 14: '┬', 15: '┼' };
@@ -74,15 +120,22 @@ export function graphLines(run, columns, color = true, language = 'en', { select
       if (index || offset) output.push(...connectors(positions));
       const interiors = group.map(node => {
         const incoming = run.edges.filter(e => e.to === node.id).map(e => e.from);
+        const task = node.state === 'running' ? tasks.find(task => task.id === node.taskId) : undefined;
+        const state = `${icons[node.state]} ${t(language, node.state)}`;
+        const activity = activitySummary(task, language, now);
+        const head = activity ? `${state} ${activity.head}` : state;
+        const room = boxWidth - 4 - width(head) - 1;
+        const stateLine = activity?.text && room >= 4 ? `${head} ${fitTail(activity.text, room)}` : head;
+        stalledNodes.add(activity?.stalled ? node.id : undefined);
         return [
           fit(`${node.id === selectedNodeId ? '>' : ' '} [${isExpanded(viewState, run.id, node.id, node.state) ? '-' : '+'}] ${node.label}`, boxWidth - 4, true),
-          fit(`${icons[node.state]} ${t(language, node.state)}`, boxWidth - 4, true),
+          fit(stateLine, boxWidth - 4, true),
           fit(incoming.length ? `← ${incoming.join(', ')}` : t(language, 'startNode'), boxWidth - 4, true),
         ];
       });
       output.push(prefix + group.map(() => `╭${'─'.repeat(Math.max(0, boxWidth - 2))}╮`).join('  '));
       for (let line = 0; line < 3; line++) output.push(prefix + group.map((node, i) =>
-        `│ ${paint(interiors[i][line], line === 1 ? colors[node.state] : undefined, color)} │`).join('  '));
+        `│ ${paint(interiors[i][line], line === 1 ? (stalledNodes.has(node.id) ? '33' : colors[node.state]) : undefined, color)} │`).join('  '));
       output.push(prefix + group.map(() => `╰${'─'.repeat(Math.max(0, boxWidth - 2))}╯`).join('  '));
       if (offset + perRow < row.length) output.push(`  · ${t(language, 'sameFrontier')}`);
       previous = positions;
@@ -128,6 +181,8 @@ function taskLines(task, language, timing, nodeStatus) {
   const lines = [`${t(language, 'task')}: ${clean(task.id)}`];
   if (task.status) lines.push(`${t(language, 'taskStatus')}: ${taskStatuses.has(task.status) ? t(language, task.status) : clean(task.status)}`);
   for (const key of ['description', ...(task.category ? ['category'] : []), 'agent', 'model', 'progress']) lines.push(`${t(language, key)}: ${value(key)}`);
+  const activity = activitySummary(task, language, timing.now);
+  if (activity) lines.push(`${t(language, 'activity')}: ${activity.head}${activity.text ? ` · ${activity.text}` : ''}`);
   const stats = [`${t(language, 'elapsed')}: ${elapsedTime(task, timing, task.status ?? nodeStatus) ?? t(language, 'noData')}`];
   for (const key of ['turns', 'toolCalls']) {
     if (task[key] !== undefined && task[key] !== null) stats.push(`${t(language, key)}: ${value(key)}`);
@@ -162,7 +217,14 @@ function compactTaskLines(task, language, timing, columns, { selected = false, n
     `${indent}${value(identity)} · ${value(task?.model).replace(/^[^/\s]+\//u, '')}`,
     `${indent}${value(task?.progress)}`,
     `${indent}${stats.join(' · ')}`,
-  ].map(line => fit(line, Math.max(1, columns - 4)));
+  ].map((line, index) => {
+    const room = Math.max(1, columns - 4);
+    const activity = index === 2 ? activitySummary(task, language, timing.now) : null;
+    if (!activity) return fit(line, room);
+    const head = `${indent}${activity.head}`;
+    const rest = room - width(head) - 3;
+    return activity.text && rest >= 4 ? `${head} · ${fitTail(activity.text, rest)}` : fit(head, room);
+  });
 }
 
 function descendantLines(task, tasks, language, timing, columns) {
@@ -257,7 +319,7 @@ export function renderFrame(state, { columns = 54, rows = 48, runIndex = 0, scro
     const failed = run.nodes.filter(n => n.state === 'failed').length;
     head.push(fit(`${t(language, run.status)} · ${t(language, 'doneCount', { done, total: run.nodes.length })}${failed ? ` · ${t(language, 'failedCount', { count: failed })}` : ''}`, columns));
     body.push('');
-    try { body.push(...graphLines(run, columns, color, language, { selectedNodeId, viewState })); }
+    try { body.push(...graphLines(run, columns, color, language, { selectedNodeId, viewState, tasks: state?.tasks ?? [], now })); }
     catch (error) { body.push(t(language, 'graphError', { error: clean(error.message) })); }
     body.push('', t(language, 'dependencies'));
     if (!run.edges.length) body.push(`  ${t(language, 'none')}`);

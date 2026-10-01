@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs';
 import { DagPane } from './src/controller.mjs';
 import { createHerdr, herdrSession } from './src/herdr.mjs';
 import { resolveViewerNode } from './src/runtime.mjs';
+import { tapStreams } from './src/stream-tap.mjs';
 import { t, languageOf } from './src/i18n.mjs';
 
 export default function extension(pi) {
@@ -15,12 +16,15 @@ export default function extension(pi) {
   const language = languageOf(process.env.OMO_HERDR_DAG_LANG ?? installedLanguage);
   let controller;
   let unsubscribe;
+  let streams;
   const viewer = join(dirname(fileURLToPath(import.meta.url)), 'src/viewer.mjs');
   const stateDir = process.env.OMO_HERDR_DAG_STATE_DIR ?? join(homedir(), '.omo', 'agent', 'herdr-dag');
 
   async function stop() {
     unsubscribe?.();
     unsubscribe = undefined;
+    streams?.stop();
+    streams = undefined;
     await controller?.stop();
     controller = undefined;
   }
@@ -34,10 +38,15 @@ export default function extension(pi) {
       stateDir, cwd: pi.cwd, node: () => resolveViewerNode({ language }), viewer, herdr: createHerdr(), language,
       taskStateDir: process.env.OMO_HERDR_DAG_TASK_STATE_DIR,
       notify: message => ctx.ui.notify(message, 'warning') });
+    const owner = controller;
+    // In-process child sessions stream through the shared Senpi AgentSession class.
+    streams = tapStreams(update => owner.receiveStream(update),
+      { onUnsupported: () => ctx.ui.notify(t(language, 'streamUnsupported'), 'warning') });
     // Confirmed in senpi/dist/core/event-bus.js and extensions/loader.js:
     // pi.rpc.emit forwards {name, data} through this shared event channel.
     unsubscribe = pi.events.on('senpi:extension-rpc-event', event => {
       if (event?.name !== 'omo.dag.updated' && event?.name !== 'omo.task.updated') return;
+      streams?.retry();
       // DagPane.enqueue reports rejected jobs; the event bus cannot await them.
       try { void (event.name === 'omo.dag.updated' ? controller?.receive(event.data) : controller?.receiveTasks(event.data))?.catch(() => {}); }
       catch (error) { ctx.ui.notify(`DAG pane: ${error.message}`, 'warning'); }

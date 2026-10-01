@@ -75,6 +75,48 @@ for (const action of ['start', 'open']) for (const custom of [false, true]) {
   });
 }
 
+test('model activity coalesces into snapshot rewrites, keeps phase start times, and vanishes on completion or stop', async t => {
+  const { options, calls } = await setup(t);
+  const taskStateDir = join(options.stateDir, 'task-store');
+  const controller = new DagPane({ ...options, taskStateDir, streamDelay: 5 });
+  const dag = payload(); dag.runs[0].nodes[0].task_id = 'st_root';
+  await writeJson(join(taskStateDir, 'tasks', 'st_root.json'), { task_id: 'st_root', parent_session_id: sessionId,
+    description: 'Real task', status: 'running', child_session_id: 'child-session' });
+  await controller.start();
+  await controller.receive(dag);
+  const base = await readJson(controller.stateFile);
+  const activityOf = async () => (await readJson(controller.stateFile)).tasks.find(task => task.id === 'st_root').activity;
+  const flushes = [controller.receiveStream({ taskId: 'st_root', active: true, phase: 'waiting', now: 1000 }),
+    controller.receiveStream({ taskId: 'st_root', active: true, phase: 'text', text: 'TAIL_ONE', now: 2000 }),
+    controller.receiveStream({ taskId: 'st_root', active: true, phase: 'text', text: 'TAIL_TWO', now: 2500 })];
+  assert.equal(flushes[0], flushes[2]);
+  await Promise.all(flushes);
+  const live = await readJson(controller.stateFile);
+  assert.deepEqual(live.runs, base.runs);
+  // The token phase began at its first token; lastAt follows the newest one.
+  assert.deepEqual(await activityOf(), { phase: 'text', text: 'TAIL_TWO', since: 2000, lastAt: 2500 });
+  await controller.receiveStream({ taskId: 'st_root', active: true, phase: 'tool', tool: 'bash', now: 3000 });
+  assert.deepEqual(await activityOf(), { phase: 'tool', tool: 'bash', since: 3000, lastAt: 3000 });
+  await controller.receiveStream({ taskId: 'st_root', active: true, phase: 'retry', attempt: 2, maxAttempts: 3, now: 4000 });
+  assert.deepEqual(await activityOf(), { phase: 'retry', attempt: 2, maxAttempts: 3, since: 4000, lastAt: 4000 });
+  await controller.receiveStream({ taskId: 'st_root', active: false });
+  const settled = await readJson(controller.stateFile);
+  assert.deepEqual(settled.tasks.find(task => task.id === 'st_root'), base.tasks[0]);
+  assert.equal(calls.filter(call => call[0] === 'split').length, 1);
+  // Terminal tasks never carry activity, even from a late event.
+  await controller.receiveTasks({ parent_session_id: sessionId, tasks: [{ task_id: 'st_root', status: 'completed' }] });
+  await controller.receiveStream({ taskId: 'st_root', active: true, phase: 'text', text: 'AFTER_TERMINAL', now: 5000 });
+  await controller.receiveStream({ taskId: 'st_unknown', active: true, phase: 'text', text: 'UNKNOWN_TASK', now: 5000 });
+  const finished = await readJson(controller.stateFile);
+  assert.equal(Object.hasOwn(finished.tasks.find(task => task.id === 'st_root'), 'activity'), false);
+  assert.ok(!JSON.stringify(finished).includes('AFTER_TERMINAL') && !JSON.stringify(finished).includes('UNKNOWN_TASK'));
+  await controller.stop();
+  const afterStop = await readJson(controller.stateFile);
+  await controller.receiveStream({ taskId: 'st_root', active: true, phase: 'text', text: 'AFTER_STOP', now: 6000 });
+  assert.deepEqual(await readJson(controller.stateFile), afterStop);
+  await rm(taskStateDir, { recursive: true, force: true });
+});
+
 for (const action of ['start', 'open']) {
   test(`${action} prefers authoritative checkpoint over stale viewer cache for the same run`, async t => {
     const { controller, checkpoint } = await checkpointSetup(t);

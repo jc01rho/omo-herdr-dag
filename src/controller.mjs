@@ -26,7 +26,7 @@ function missingPane(error) {
 }
 
 export class DagPane {
-  constructor({ sessionId, parentPane, socket, stateDir, cwd, node, viewer, herdr, notify = () => {}, language = 'en', taskStateDir, retentionDays }) {
+  constructor({ sessionId, parentPane, socket, stateDir, cwd, node, viewer, herdr, notify = () => {}, language = 'en', taskStateDir, retentionDays, streamDelay = 250 }) {
     Object.assign(this, { sessionId, parentPane, stateDir, cwd, node, viewer, herdr, notify });
     this.language = languageOf(language);
     this.key = viewKey(socket, parentPane, sessionId);
@@ -35,10 +35,12 @@ export class DagPane {
     this.checkpointDir = join(taskStateDir ?? join(cwd, '.omo', 'senpi-task'), 'dag', 'runs');
     // Explicit option wins so tests need not mutate the shared process environment.
     this.retentionDays = retentionDays ?? retentionDaysFromEnv();
+    this.streamDelay = streamDelay;
     this.queue = Promise.resolve();
     this.runs = [];
     this.stopped = false;
     this.tasks = [];
+    this.streams = new Map();
     this.taskData = new TaskData({ cwd, sessionId, stateDir: taskStateDir, notify,
       onChange: () => { if (!this.stopped) this.enqueue(() => this.save(true)); } });
   }
@@ -84,6 +86,42 @@ export class DagPane {
     });
   }
 
+  // Streamed tokens arrive far more often than task records change; coalesce
+  // them and rewrite the snapshot without rescanning the task store. The
+  // returned promise settles after the coalesced save, so tests need no sleeps.
+  // `since` marks when the current phase began and `lastAt` the latest event,
+  // so the viewer clock can show elapsed waits and gaps between tokens.
+  receiveStream(update) {
+    if (this.stopped) return Promise.resolve();
+    if (update.active) {
+      const previous = this.streams.get(update.taskId);
+      const samePhase = previous?.phase === update.phase && previous.tool === update.tool;
+      this.streams.set(update.taskId, { phase: update.phase,
+        ...(update.tool ? { tool: update.tool } : {}), ...(update.text ? { text: update.text } : {}),
+        ...(update.attempt ? { attempt: update.attempt } : {}), ...(update.maxAttempts ? { maxAttempts: update.maxAttempts } : {}),
+        since: samePhase ? previous.since : update.now, lastAt: update.now });
+    } else if (!this.streams.delete(update.taskId)) return Promise.resolve();
+    if (this.streamTimer) return this.streamFlush;
+    this.streamFlush = new Promise(resolve => {
+      this.streamTimer = setTimeout(() => {
+        this.streamTimer = undefined;
+        this.enqueue(() => this.save(true, false)).then(resolve, resolve);
+      }, this.streamDelay);
+      this.streamTimer.unref?.();
+    });
+    return this.streamFlush;
+  }
+
+  withStreams(tasks, connected) {
+    if (!connected || !this.streams.size) return tasks;
+    return tasks.map(task => {
+      // A finished task never regains a stale activity from a late event.
+      if (task.status !== 'running') { this.streams.delete(task.id); return task; }
+      const activity = this.streams.get(task.id);
+      return activity ? { ...task, activity } : task;
+    });
+  }
+
   async restoreRuns(runs = this.runs, preferLive = false) {
     let files;
     try { files = await readdir(this.checkpointDir); }
@@ -104,10 +142,10 @@ export class DagPane {
     this.runs = [...restored.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
 
-  async save(connected) {
-    this.tasks = await this.taskData.refresh(this.runs);
+  async save(connected, refresh = true) {
+    if (refresh) this.tasks = await this.taskData.refresh(this.runs);
     await writeJson(this.stateFile, { version: 1, sessionId: this.sessionId, connected, language: this.language,
-      updatedAt: new Date().toISOString(), runs: this.runs, tasks: this.tasks });
+      updatedAt: new Date().toISOString(), runs: this.runs, tasks: this.withStreams(this.tasks, connected) });
     // All callers serialize saves through the queue, including task-only disk changes.
     if (connected && !this.stopped && (this.runs.length || this.tasks.length)) await this.ensure(false);
   }
@@ -187,6 +225,8 @@ export class DagPane {
 
   stop() {
     this.stopped = true;
+    clearTimeout(this.streamTimer);
+    this.streams.clear();
     this.taskData.stop();
     return this.enqueue(() => this.save(false));
   }

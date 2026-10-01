@@ -2,9 +2,61 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { messages } from '../src/i18n.mjs';
 import { layers, normalizeRun, sessionRuns } from '../src/model.mjs';
-import { fit, render, renderFrame, standaloneTasks, width } from '../src/render.mjs';
+import { fit, fitTail, render, renderFrame, standaloneTasks, width } from '../src/render.mjs';
 import { TASK_SCOPE, emptyViewState, setExpanded } from '../src/view-state.mjs';
 import { payload, sessionId } from './fixtures.mjs';
+
+test('running cards show model liveness: phase, time since the last token, stall warnings and the newest text', () => {
+  const now = Date.parse('2026-09-30T00:10:00Z');
+  const activity = (phase, extra = {}, age = 0, span = age) => ({ phase, since: now - span, lastAt: now - age, ...extra });
+  const tail = `OLD_HEAD ${'한글 words '.repeat(30)}NEWEST_TAIL`;
+  const live = { id: 'st_live', status: 'running', progress: 'PROGRESS_LINE', activity: activity('text', { text: tail }) };
+  const done = { id: 'st_done', status: 'completed', progress: 'DONE_PROGRESS', activity: activity('text', { text: 'DONE_TAIL' }) };
+  const card = (task, options = {}) => {
+    const frame = renderFrame({ connected: true, runs: [], tasks: [task] }, { rows: 80, columns: 54, color: false, now, ...options });
+    return frame.text.split('\n').slice(3 + frame.taskRanges[task.id].start, 3 + frame.taskRanges[task.id].end);
+  };
+  // Tokens arriving now: the newest characters stay visible at the right edge.
+  const streaming = card(live);
+  assert.match(streaming[3], /✎ now · ….*NEWEST_TAIL/);
+  assert.doesNotMatch(streaming.join('\n'), /OLD_HEAD|PROGRESS_LINE/);
+  for (const line of streaming) assert.ok(width(line) <= 53, line);
+  assert.match(card({ ...live, activity: activity('text', { text: 'x' }, 7000, 9000) })[3], /✎ 7s ago · x/);
+  assert.match(card({ ...live, activity: activity('thinking', { text: 'ponder' }) })[3], /💭 now · ponder/);
+  assert.match(card({ ...live, activity: activity('toolArgs', { tool: 'write', text: '{"path":"a"' }, 1000) })[3], /⚙ write now · .*"a"/);
+  // Phases without tokens show how long the request or tool has taken.
+  assert.match(card({ ...live, activity: activity('waiting', {}, 12000) })[3], /⏳ waiting for model 12s/);
+  assert.match(card({ ...live, activity: activity('tool', { tool: 'bash' }, 65000) })[3], /▶ bash running 1m 5s/);
+  assert.match(card({ ...live, activity: activity('retry', { attempt: 2, maxAttempts: 3 }, 4000) })[3], /↻ retry 2\/3 · 4s/);
+  // A silent token phase or a long first-token wait is flagged; a long tool is not.
+  assert.match(card({ ...live, activity: activity('text', { text: 'LAST' }, 45000) })[3], /⚠ possibly stalled · 45s ago · LAST/);
+  assert.match(card({ ...live, activity: activity('waiting', {}, 95000) })[3], /⚠ possibly stalled · waiting for model 1m 35s/);
+  assert.doesNotMatch(card({ ...live, activity: activity('tool', { tool: 'bash' }, 600000) })[3], /⚠/);
+  // Korean labels, terminal tasks, malformed activity and missing activity keep the progress line.
+  assert.match(card({ ...live, activity: activity('text', { text: 'x' }, 7000) }, { language: 'ko' })[3], /✎ 7초 전 · x/);
+  assert.match(card({ ...live, activity: activity('waiting', {}, 95000) }, { language: 'ko' })[3], /⚠ 멈춤 의심 · 응답 대기 1분 35초/);
+  const viewState = emptyViewState('session');
+  setExpanded(viewState, TASK_SCOPE, 'st_done', true);
+  const finished = card(done, { viewState }).join('\n');
+  assert.ok(finished.includes('DONE_PROGRESS') && !finished.includes('DONE_TAIL'));
+  assert.match(card({ ...live, activity: { phase: 'text' } })[3], /PROGRESS_LINE/);
+  assert.match(card({ ...live, activity: undefined })[3], /PROGRESS_LINE/);
+  // Detail view labels the activity; the DAG box appends it to the running state and turns yellow when stalled.
+  const detail = render({ connected: true, runs: [], tasks: [live] }, { rows: 80, columns: 54, color: false, now, selectedTaskId: 'st_live', verbose: true });
+  assert.ok(detail.includes(`${messages.en.activity}: ✎ now · OLD_HEAD`) && detail.includes('PROGRESS_LINE'));
+  const run = normalizeRun({ run_id: 'dag', status: 'running', nodes: [
+    { id: 'live', state: 'running', task_id: 'st_live' }, { id: 'done', state: 'completed', task_id: 'st_done' }], edges: [] });
+  const dag = render({ connected: true, runs: [run], tasks: [live, done] }, { rows: 120, columns: 80, color: false, now });
+  assert.match(dag, /● Running ✎ now …\S*/);
+  assert.doesNotMatch(dag, /DONE_TAIL/);
+  const stalled = { ...live, activity: activity('text', { text: 'LAST' }, 45000) };
+  const colored = render({ connected: true, runs: [run], tasks: [stalled, done] }, { rows: 120, columns: 80, color: true, now });
+  assert.ok(colored.includes('\x1b[33m● Running ⚠ possibly stalled'));
+  for (const columns of [12, 20, 35, 54, 120]) for (const line of render({ connected: true, runs: [run], tasks: [live, done] },
+    { columns, rows: 48, color: true, now, selectedNodeId: 'live' }).split('\n')) assert.ok(width(line) < columns, `${columns}: ${line}`);
+  assert.equal(fitTail('abcdef', 4), '…def');
+  assert.equal(width(fitTail('한글한글', 5)), 5);
+});
 
 test('standalone tasks are separate from every DAG, respect explicit folds, and expose real metadata and children', () => {
   const state = { connected: true, runs: [], tasks: [

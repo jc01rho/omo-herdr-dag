@@ -127,6 +127,8 @@ The same selection and collapse keys work in Tasks. Running tasks appear first, 
 
 Expanded task cards default to four compact lines: status and task description, agent and short model name, one line of progress, and elapsed time with turn/tool counts. Long progress is clipped in this view. Press `d` for the task ID, exact timestamps, full model name and the supplied progress text; press it again to return to the compact card. Full-detail viewing is temporary and does not replace the saved expand/collapse setting.
 
+While a running in-process task is calling its model, the progress line shows whether that call is alive: `✎ now · …newest text` (response), `💭` (thinking), `⚙ write now · …` (tool arguments being generated), `⏳ waiting for model 12s` (request sent, no token yet), `▶ bash running 1m 5s` (tool running, model idle) and `↻ retry 2/3 · 4s` (provider retry). Token phases show the time since the last token; when no token arrives for 30 seconds, or no first token for 90 seconds, the line starts with `⚠ possibly stalled` and the running DAG node turns yellow. Long tools are never flagged. The running DAG node box shows the same summary after its state, and `d` adds a Model activity line. OmO only publishes the latest assistant line after each message ends, so the pane reads these events from the Senpi `AgentSession` shared through OmO's in-process barrel. Tasks run in a separate process, or an OmO build that no longer exposes that barrel, fall back to the normal progress line. If OmO has loaded that barrel but it no longer exposes `AgentSession._emit`, the session shows a single warning.
+
 When the OmO session ends, the last graph remains visible with a disconnected indicator and an explicit close hint:
 
 ```text

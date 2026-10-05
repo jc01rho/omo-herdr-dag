@@ -393,7 +393,7 @@ test('real viewer PTY selects, toggles, refreshes, switches runs and persists ac
   console.log('PTY evidence: saved false folded, saved true restored, Tab/Shift-Tab/n/p, Space/Enter, run switches, atomic refresh/reorder/retry/new node, quit/restart persistence passed.');
 });
 
-test('real viewer preserves selection on new runs and exposes completed runs on demand', { timeout: 25000 }, async t => {
+test('real viewer follows newly active runs and manual run selection survives later arrivals', { timeout: 25000 }, async t => {
   const dir = await mkdtemp(join(tmpdir(), 'dag-follow-'));
   t.after(() => rm(dir, { recursive: true, force: true }));
   const file = join(dir, 'session.json');
@@ -409,11 +409,112 @@ test('real viewer preserves selection on new runs and exposes completed runs on 
     { id: 'b', label: 'NEW_NODE', state: 'running', taskId: 'st_new' },
   ], edges: [] });
   state.tasks.push({ id: 'st_new', status: 'running', description: 'NEW_TASK' });
-  const followed = await viewer.frame(text => text.includes('NEW_RUN') && text.includes('Selected run: OLD_RUN'), () => writeJson(file, state));
-  assert.ok(followed.includes('Selected run: OLD_RUN'));
-  await viewer.frame(text => text.includes('OLD_RUN') && text.includes('Completed runs (1) [-]'), () => viewer.send({ keys: 'c' }));
+  const followed = await viewer.frame(text => text.includes('Selected run: NEW_RUN') && text.includes(messages.en.followOn), () => writeJson(file, state));
+  assert.ok(followed.includes('NEW_NODE'));
+  await viewer.frame(text => text.includes('Selected run: NEW_RUN') && text.includes(messages.en.followOff), () => viewer.send({ keys: 'c' }));
+  await viewer.frame(text => text.includes('Selected run: OLD_RUN') && text.includes(messages.en.followOff), () => viewer.send({ keys: '\x1b[C' }));
+  state.runs.unshift({ id: 'r-later', name: 'LATER_RUN', status: 'running', nodes: [
+    { id: 'c', label: 'LATER_NODE', state: 'running' },
+  ], edges: [] });
+  await viewer.frame(text => text.includes('LATER_RUN') && text.includes('Selected run: OLD_RUN'), () => writeJson(file, state));
   await viewer.close();
   console.log('PTY evidence: new run auto-followed once; manual run selection pins the pane across later arrivals.');
+});
+
+test('real PTY follow reveals graph work, retains parallel targets, hands off and suspends for every inspection control', { timeout: 45000 }, async t => {
+  const dir = await mkdtemp(join(tmpdir(), 'dag-target-'));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  const file = join(dir, 'session.json');
+  const nodes = Array.from({ length: 9 }, (_, i) => ({
+    id: `n${i}`, label: i === 6 ? 'RUN_TARGET_한글' : i === 7 ? 'NEXT_TARGET_中文' : `NODE_${i}`,
+    state: i === 6 ? 'running' : 'completed', taskId: `t${i}`,
+  }));
+  const run = { id: 'r', name: 'GRAPH_TARGET', status: 'running', nodes,
+    edges: nodes.slice(1).map((node, i) => ({ from: nodes[i].id, to: node.id })) };
+  const state = { sessionId: 'target', connected: true, runs: [run,
+    { id: 'other', name: 'OTHER_RUN', status: 'completed', nodes: [{ id: 'other', label: 'OTHER_NODE', state: 'completed' }], edges: [] }],
+  tasks: [...nodes.map(node => ({ id: node.taskId, status: node.state, description: `DETAIL_${node.id}`, progress: 'INSPECT_PROGRESS' })),
+    { id: 'root', status: 'running', description: 'ROOT_TASK' }] };
+  await writeJson(file, state);
+  const viewer = openViewer(file, t);
+  await viewer.frame(text => text.includes('RUN_TARGET_') && text.includes(messages.en.followOn));
+  // A queued old-width frame can have the new row count before resize completes.
+  const narrow = await viewer.frame(text => text.split('\n').length === 18 && text.includes('RUN_TARGET_') &&
+    text.split('\n').includes('─'.repeat(34)), () => viewer.send({ resize: [18, 35] }));
+  assert.ok(narrow.split('\n').every(line => width(line) < 35), narrow);
+  assert.doesNotMatch(narrow, /DETAIL_n6|> \[-\] RUN_TARGET/);
+  nodes[7].state = 'running';
+  state.tasks[7].status = 'running';
+  run.name = 'PARALLEL_UPDATE';
+  const stable = await viewer.frame(text => text.includes('PARALLEL_UPDATE') && text.includes('RUN_TARGET_'), () => writeJson(file, state));
+  assert.doesNotMatch(stable, /DETAIL_n6|DETAIL_n7/);
+  state.tasks[6].progress = 'STREAM_UPDATE';
+  run.name = 'TOKEN_UPDATE';
+  const token = await viewer.frame(text => text.includes('TOKEN_UPDATE') && text.includes('RUN_TARGET_'), () => writeJson(file, state));
+  const stableFooter = stable.split('\n').at(-4);
+  assert.ok(stableFooter.startsWith('● Connected'), stableFooter);
+  assert.match(stableFooter, /\d+–\d+\/\d+ · f /);
+  assert.equal(token.split('\n').at(-4), stableFooter);
+  nodes[6].state = 'completed'; state.tasks[6].status = 'completed'; run.name = 'COMPLETION_UPDATE';
+  const handoff = await viewer.frame(text => text.includes('COMPLETION_UPDATE') && text.includes('NEXT_TARGET_'), () => writeJson(file, state));
+  assert.doesNotMatch(handoff, /RUN_TARGET_|DETAIL_n7/);
+  await viewer.frame(text => text.split('\n').length === 26, () => viewer.send({ resize: [26, 80] }));
+  const controls = ['j', 'k', '\x1b[6~', '\x1b[5~', 'n', 'p', '\t', '\x1b[Z', ' ', '\r', 'd', '\x1b[C', '\x1b[D', 'c', 't'];
+  for (const [index, keys] of controls.entries()) {
+    await viewer.frame(text => text.includes(messages.en.followOff), () => viewer.send({ keys }));
+    run.name = `INSPECTION_${index}`;
+    state.runs[1].name = `OTHER_INSPECTION_${index}`;
+    state.tasks.find(task => task.id === 'root').description = `ROOT_UPDATE_${index}`;
+    const inspected = await viewer.frame(text => text.includes(messages.en.followOff) &&
+      (text.includes(`Selected run: ${run.name}`) || text.includes(`Selected run: ${state.runs[1].name}`) ||
+        text.includes(`ROOT_UPDATE_${index}`)), () => writeJson(file, state));
+    assert.ok(inspected.includes(messages.en.followOff));
+    const resumed = await viewer.frame(text => text.includes(messages.en.followOn) && text.includes('NEXT_TARGET_') &&
+      !text.includes('DETAIL_n7'), () => viewer.send({ keys: 'f' }));
+    assert.doesNotMatch(resumed, /> \[-\] NEXT_TARGET/);
+  }
+  await viewer.frame(text => text.includes(messages.en.followOff), () => viewer.send({ keys: 'f' }));
+  await viewer.frame(text => text.includes(messages.en.followOn) && text.includes('NEXT_TARGET_'), () => viewer.send({ keys: 'f' }));
+  await viewer.close();
+  assert.deepEqual(JSON.parse(await readFile(file, 'utf8')), state);
+});
+
+test('real PTY follows empty/task/DAG transitions, keeps a running task on parallel arrivals and disables live follow when disconnected', { timeout: 30000 }, async t => {
+  const dir = await mkdtemp(join(tmpdir(), 'follow-transition-'));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  const file = join(dir, 'session.json');
+  const state = { sessionId: 'transition', language: 'zh-cn', connected: true, runs: [], tasks: [] };
+  await writeJson(file, state);
+  const viewer = openViewer(file, t);
+  await viewer.frame(text => text.includes(messages['zh-cn'].followOn));
+  const task = { id: 'z', status: 'running', description: 'INITIAL_TASK' };
+  state.tasks.push(task);
+  await viewer.frame(text => text.includes('> ● INITIAL_TASK') && text.includes(messages['zh-cn'].followOn), () => writeJson(file, state));
+  state.tasks.unshift({ id: 'a', status: 'running', description: 'PARALLEL_TASK' });
+  const kept = await viewer.frame(text => text.includes('PARALLEL_TASK') && text.includes('> ● INITIAL_TASK'), () => writeJson(file, state));
+  assert.doesNotMatch(kept, /> ● PARALLEL_TASK/);
+  const linked = { id: 'r', name: 'LINKED_DAG', status: 'running', nodes: [
+    { id: 'start', label: 'START_NODE', state: 'completed' },
+    { id: 'linked', label: 'LINKED_TARGET', state: 'running', taskId: task.id },
+  ], edges: [{ from: 'start', to: 'linked' }] };
+  state.runs.push(linked);
+  await viewer.frame(text => text.includes('LINKED_DAG') && text.includes('LINKED_TARGET'), () => writeJson(file, state));
+  linked.nodes[1].state = 'completed'; linked.status = 'completed'; task.status = 'completed';
+  await viewer.frame(text => text.includes('> ● PARALLEL_TASK') && !text.includes('LINKED_TARGET'), () => writeJson(file, state));
+  const next = { id: 'new', name: 'NEW_DAG', status: 'running', nodes: [{ id: 'next', label: 'NEW_TARGET', state: 'running' }], edges: [] };
+  state.runs.unshift(next);
+  const stillTasks = await viewer.frame(text => text.includes('DAG (2)') && text.includes('> ● PARALLEL_TASK'), () => writeJson(file, state));
+  assert.doesNotMatch(stillTasks, /NEW_TARGET/);
+  state.tasks[0].status = 'completed';
+  await viewer.frame(text => text.includes('NEW_DAG') && text.includes('NEW_TARGET'), () => writeJson(file, state));
+  state.connected = false;
+  await viewer.frame(text => text.includes(messages['zh-cn'].followOff) && text.includes(messages['zh-cn'].disconnected), () => writeJson(file, state));
+  state.runs = [];
+  state.tasks.push({ id: 'reappeared', status: 'running', description: 'RETURNED_TASK' });
+  await viewer.frame(text => text.includes('RETURNED_TASK') && text.includes(messages['zh-cn'].followOff), () => writeJson(file, state));
+  state.connected = true;
+  await viewer.frame(text => text.includes('RETURNED_TASK') && text.includes(messages['zh-cn'].followOn), () => writeJson(file, state));
+  await viewer.close();
 });
 
 test('real viewer clock advances elapsed without new snapshots or input', { timeout: 15000 }, async t => {

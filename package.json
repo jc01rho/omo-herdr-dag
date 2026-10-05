@@ -1,6 +1,6 @@
 {
   "name": "omo-herdr-dag",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "description": "Live OmO workflow DAGs in a Herdr side pane.",
   "license": "MIT",
   "repository": {

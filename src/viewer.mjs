@@ -52,6 +52,7 @@ function draw() {
     selectedNodeId: selectedNodes.get(selectedId), selectedTaskId, view, viewState, verbose, revealSelection, follow,
     runningNodeId: running?.nodeId, runningTaskId: running?.taskId });
   scroll = result.scroll;
+  if (follow) revealSelection = false;
   const frame = result.text;
   process.stdout.write(interactive ? `\x1b[H${frame.replaceAll('\n', '\x1b[K\r\n')}\x1b[K` : `${frame}\n`);
 }

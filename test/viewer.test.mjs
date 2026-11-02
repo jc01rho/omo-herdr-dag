@@ -493,8 +493,17 @@ test('real PTY follow reveals graph work, retains parallel targets, hands off an
       text.includes(`Selected run: ${run.name}`) && isSelected(text), () => writeJson(file, state));
     assert.ok(updated.includes('NEXT_TARGET_'));
   }
+  await viewer.frame(text => text.split('\n').length === 18 && text.includes('NEXT_TARGET_') &&
+    text.split('\n').includes('─'.repeat(34)),
+  () => viewer.send({ resize: [18, 35] }));
+  nodes[7].state = 'completed'; state.tasks[7].status = 'completed';
+  nodes[8].state = 'running'; nodes[8].label = 'FINAL_TARGET_中文'; state.tasks[8].status = 'running';
+  run.name = 'LIVE_AFTER_KEYS';
+  await viewer.frame(text => text.includes('LIVE_AFTER_KEYS') && text.includes('FINAL_TARGET_'), () => writeJson(file, state));
+  await viewer.frame(text => text.split('\n').length === 26 && text.includes('FINAL_TARGET_') &&
+    text.includes(messages.en.followOn), () => viewer.send({ resize: [26, 80] }));
   await viewer.frame(text => text.includes(messages.en.followOff), () => viewer.send({ keys: 'f' }));
-  await viewer.frame(text => text.includes(messages.en.followOn) && text.includes('NEXT_TARGET_'), () => viewer.send({ keys: 'f' }));
+  await viewer.frame(text => text.includes(messages.en.followOn) && text.includes('FINAL_TARGET_'), () => viewer.send({ keys: 'f' }));
   await viewer.close();
   assert.deepEqual(JSON.parse(await readFile(file, 'utf8')), state);
 });

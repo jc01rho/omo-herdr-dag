@@ -117,24 +117,21 @@ process.stdin.on('keypress', (text, pressed) => {
   if (key === 'q' || key === '\x03' || key === '\x04') return void close(true);
   if (key === 'f') { follow = !follow; revealSelection = false; }
   if (['\x1b[B', 'j', '\x1b[A', 'k', '\x1b[6~', '\x1b[5~'].includes(key)) {
-    follow = false; revealSelection = false;
+    revealSelection = false;
   }
   if (key === '\x1b[B' || key === 'j') scroll++;
   if (key === '\x1b[A' || key === 'k') scroll = Math.max(0, scroll - 1);
   if (key === '\x1b[6~') scroll += Math.max(1, (process.stdout.rows ?? 48) - 8);
   if (key === '\x1b[5~') scroll = Math.max(0, scroll - Math.max(1, (process.stdout.rows ?? 48) - 8));
   if (key === 't' && state?.runs?.length) {
-    follow = false;
     view = view === 'dag' ? 'tasks' : 'dag';
     scroll = 0; revealSelection = true;
   }
   if ((key === 'c' || pressed.name === 'c') && (state?.runs?.length ?? 0) > 1) {
-    follow = false;
     completedExpanded = !completedExpanded;
     scroll = 0; revealSelection = true;
   }
   if (key === '\x1b[C' || key === '\x1b[D') {
-    follow = false;
     const runs = selectableRuns();
     const current = Math.max(0, runs.findIndex(run => run.id === selectedId));
     selectedId = runs[(current + (key === '\x1b[C' ? 1 : -1) + runs.length) % runs.length]?.id;
@@ -146,7 +143,6 @@ process.stdin.on('keypress', (text, pressed) => {
   const scope = view === 'tasks' ? TASK_SCOPE : run?.id;
   const itemId = view === 'tasks' ? selectedTaskId : selectedNodes.get(selectedId);
   if (items.length && (pressed.name === 'tab' || key === 'n' || key === 'p')) {
-    follow = false;
     const current = Math.max(0, items.findIndex(item => item.id === itemId));
     const direction = pressed.shift || key === 'p' ? -1 : 1;
     const nextId = items[(current + direction + items.length) % items.length].id;
@@ -155,13 +151,11 @@ process.stdin.on('keypress', (text, pressed) => {
     revealSelection = true;
   }
   if (items.length && key === 'd') {
-    follow = false;
     // A temporary detail peek never writes or replaces the saved fold state.
     verbose = !verbose;
     revealSelection = true;
   }
   if (items.length && (key === ' ' || key === '\r' || key === '\n')) {
-    follow = false;
     verbose = false;
     const item = items.find(item => item.id === itemId);
     const status = view === 'tasks' ? item.status : item.state;

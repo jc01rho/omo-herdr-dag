@@ -126,7 +126,7 @@ On startup, the extension also restores the current session's saved DAG checkpoi
 
 Borders, titles, and status marks use execution state, not selection: running is cyan, completed green, failed/error red, and paused/blocked yellow. Automatic follow defaults to ON and keeps the same running target until it finishes, then follows the next running node or ordinary task. It reveals DAG boxes in the graph rather than jumping to their detail cards, and switches views or runs when needed. Parallel arrivals and streamed text do not cycle between targets.
 
-Scrolling, selection, run/view switches, folding, and full-detail inspection suspend follow so updates do not interrupt your inspection. The footer shows localized follow ON/OFF with `f`; disconnected snapshots show OFF and do not display live model activity. Follow is temporary viewer state and does not alter saved fold preferences.
+Only `f` pauses or resumes follow. Scrolling, selection, run/view switches, folding, and full-detail inspection keep it enabled; press `f` first to inspect older work without automatic tracking. The footer shows localized follow ON/OFF with `f`; disconnected snapshots show OFF and do not display live model activity. Follow is temporary viewer state and does not alter saved fold preferences.
 
 DAG detail cards show the graph's node label in their top border, even when folded, without adding a row. Long labels are clipped to the pane width; `d` shows the full label and node ID.
 

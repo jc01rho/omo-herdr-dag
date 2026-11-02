@@ -200,7 +200,8 @@ Snapshot 是本地 JSON 文件，包含会话与运行 ID、名称、节点标�
 | 没有自动打开 pane | 扩展只针对 workflow DAG 或当前会话的 OmO 任务打开。没有 OmO 任务记录的普通 `parallel()` 调用不算任务。检查 OmO 版本和自定义任务存储路径；手动关闭的 pane 需要 `/dag-pane`。 |
 | pane 被关闭后不再打开 | 这是有意为之。运行 `/dag-pane` 重新打开。 |
 | `omob` 报 `Unknown options: --state, --close-pane` | 更新本扩展，关闭失败的 DAG pane，在 OmO 中运行 `/reload`，然后 `/dag-pane`。旧启动器把编译的 OmO 二进制误当成了 Node。 |
-| 出现 `DAG pane:` 警告 | 确认 `herdr` 在 `PATH` 上且支持 `pane split`、`get`、`rename` 和 `run`。启动失败或不确定时会抑制自动重试，以避免重复 pane。重试前请检查并关闭未完成的 viewer pane。 |
+| 出现 `DAG pane:` 警告 | 确认 `herdr` 在 `PATH` 上且支持 `pane split`、`get`、`rename` 和 `run`。启动必须在十秒内得到确认。启动失败或不确定时会抑制自动重试，避免重复 pane；`/dag-pane` 会替换未完成的 pane 并重试。 |
+| 恢复的 DAG pane 中只有 shell | 下次更新会替换 viewer 不再响应的现存 pane。也可用 `/dag-pane` 立即检查。手动关闭的 pane 保持关闭，直到运行 `/dag-pane`。 |
 | 某条依赖边难以跟踪 | 查看每个节点内的 incoming ID 和图形下方的完整边列表。必要时滚动。 |
 
 ## 工作原理
@@ -218,6 +219,8 @@ OmO 任务进度: omo.task.updated + 本地任务记录
 普通子任务显示在独立的任务列表中，而不会被伪造成依赖节点。已链接到任何显示中 DAG 的任务会从该列表排除；其子任务仍归属于所属任务。只收集当前会话的任务及其显式关联的后代。
 
 桥接层监听已安装的 Senpi 事件总线。它使用 `herdr pane split --ratio 0.65 --no-focus`、`rename` 和 `run` 创建 viewer。Herdr 的 ratio 以原 pane 为基准，为新 pane 留下约 35% 的宽度。
+
+每个 viewer 会在 `<snapshot path>.viewer.json` 中记录启动令牌和仅监听回环地址的端口。控制器在复用 pane 前检查实际响应，因此不会将复用了旧 PID 的无关进程误认为 viewer。监听器随 viewer 关闭，无需额外依赖或配置。
 
 此集成依赖 OmO/Senpi 的内部事件契约，这些契约可能随版本变化。它读取显式的 workflow 边；不会推断无关任务之间的依赖。宽 frontier 会换行，跨越 frontier 的依赖通过 incoming ID 和边列表表示。长标签和错误会被裁剪到终端宽度。
 

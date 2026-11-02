@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { watch } from 'node:fs';
 import { readdir } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 import { readJson, writeJson } from './storage.mjs';
@@ -7,6 +8,7 @@ import { shellCommand } from './herdr.mjs';
 import { normalizeRun, sessionRuns } from './model.mjs';
 import { t, languageOf } from './i18n.mjs';
 import { TaskData } from './task-data.mjs';
+import { viewerResponds } from './viewer-health.mjs';
 
 export function viewKey(socket, pane, session) {
   return createHash('sha256').update(JSON.stringify([socket, pane, session])).digest('hex').slice(0, 24);
@@ -65,7 +67,7 @@ export class DagPane {
     return this.enqueue(async () => {
       // Housekeeping precedes restore so a fresh pane never lists pruned snapshots.
       await pruneExpiredSnapshots(this.stateDir, {
-        keepFiles: [basename(this.stateFile), basename(this.recordFile), `${basename(this.stateFile)}.view.json`],
+        keepFiles: [basename(this.stateFile), basename(this.recordFile), `${basename(this.stateFile)}.view.json`, `${basename(this.stateFile)}.viewer.json`],
         days: this.retentionDays, notify: message => this.notify(t(this.language, 'pruneFailed', { error: message })) });
       const state = await readJson(this.stateFile);
       if (state?.sessionId === this.sessionId) {
@@ -191,21 +193,25 @@ export class DagPane {
     }
   }
 
+  async viewerRunning(paneId) {
+    return viewerResponds(await readJson(`${this.stateFile}.viewer.json`), paneId);
+  }
+
   async ensure(force) {
     const record = await readJson(this.recordFile);
-    // Preserve a manually closed pane across events/reloads. /dag-pane explicitly reopens it.
-    if (record && !force) return record.paneId;
+    if (record && !force && (!record.paneId || !record.ready)) return record.paneId;
     if (record?.paneId) {
       try {
         await this.herdr('get', record.paneId);
-        if (record.ready) {
-          await this.closeDagPanes(record.paneId);
+        if (record.ready && await this.viewerRunning(record.paneId)) {
+          if (force) await this.closeDagPanes(record.paneId);
           return record.paneId;
         }
-        // Occupied leftover from a failed launch: close it, then replace.
         await this.closePane(record.paneId);
       } catch (error) {
         if (!missingPane(error)) throw error;
+        // A missing pane was intentionally closed; only an explicit open restores it.
+        if (!force) return record.paneId;
       }
     }
     if (typeof this.node === 'function') this.node = await this.node();
@@ -218,7 +224,19 @@ export class DagPane {
     if (!paneId) throw new Error(t(this.language, 'missingPaneId'));
     await writeJson(this.recordFile, { paneId, ready: false });
     await this.herdr('rename', paneId, dagTitle(this.sessionId));
-    await this.herdr('run', paneId, shellCommand([this.node, this.viewer, '--state', this.stateFile, '--close-pane', paneId]));
+    const ready = Promise.withResolvers();
+    const watcher = watch(this.stateDir, (_event, name) => {
+      if (name && String(name) !== `${basename(this.stateFile)}.viewer.json`) return;
+      this.viewerRunning(paneId).then(running => { if (running) ready.resolve(); }, ready.reject);
+    });
+    watcher.on('error', ready.reject);
+    const timeout = setTimeout(() => ready.reject(new Error(t(this.language, 'viewerStartTimeout', { pane: paneId }))), 10000);
+    try {
+      await Promise.all([
+        ready.promise,
+        this.herdr('run', paneId, shellCommand([this.node, this.viewer, '--state', this.stateFile, '--close-pane', paneId])),
+      ]);
+    } finally { clearTimeout(timeout); watcher.close(); }
     await writeJson(this.recordFile, { paneId, ready: true });
     return paneId;
   }

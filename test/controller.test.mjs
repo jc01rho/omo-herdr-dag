@@ -8,12 +8,15 @@ import { DagPane, dagTitle, isDagViewerPane } from '../src/controller.mjs';
 import { readJson, writeJson } from '../src/storage.mjs';
 import { payload, sessionId } from './fixtures.mjs';
 import { normalizeRun } from '../src/model.mjs';
+import { openViewerHealth } from '../src/viewer-health.mjs';
 
 async function setup(t) {
   const stateDir = await mkdtemp(join(tmpdir(), 'omo-dag-test-'));
   const controllers = new Set();
+  const viewers = new Map();
   t.after(async () => {
     for (const controller of controllers) await controller.stop();
+    for (const viewer of viewers.values()) await viewer.close();
     await rm(stateDir, { recursive: true, force: true });
   });
   const calls = [], panes = new Set();
@@ -22,6 +25,7 @@ async function setup(t) {
     calls.push(args);
     if (args[0] === 'split') { const pane_id = `test:p${++number}`; panes.add(pane_id); return { pane: { pane_id } }; }
     if (args[0] === 'get' && !panes.has(args[1])) throw new Error('pane_not_found');
+    if (args[0] === 'run') viewers.set(args[1], await openViewerHealth(controller.stateFile, args[1]));
     if (args[0] === 'list') return { panes: [
       { pane_id: options.parentPane, tab_id: 'tab0', label: 'OmO' },
       ...[...panes].map(pane_id => ({ pane_id, tab_id: 'tab0', label: dagTitle(sessionId) })),
@@ -29,6 +33,8 @@ async function setup(t) {
     if (args[0] === 'close') {
       if (!panes.has(args[1])) throw new Error('pane_not_found');
       panes.delete(args[1]);
+      const viewer = viewers.get(args[1]);
+      if (viewer) { viewers.delete(args[1]); await viewer.close(); }
     }
     return {};
   };
@@ -241,6 +247,66 @@ test('reload reuses the pane and manual closure is respected until explicit reop
   assert.equal(calls.filter(c => c[0] === 'split').length, 1);
   await next.open();
   assert.equal(calls.filter(c => c[0] === 'split').length, 2);
+});
+for (const force of [false, true]) {
+  test(`${force ? 'explicit open' : 'incoming event'} replaces a shell-only pane with a stale ready record`, async t => {
+    const { controller, panes } = await setup(t);
+    await controller.receive(payload());
+    const previous = [...panes][0];
+    const before = await readJson(controller.stateFile);
+    await rm(`${controller.stateFile}.viewer.json`, { force: true });
+
+    const restored = await controller.ensure(force);
+
+    assert.notEqual(restored, previous);
+    assert.deepEqual([...panes], [restored]);
+    assert.deepEqual(await readJson(controller.stateFile), before);
+  });
+}
+test('a live startup receipt reuses the same pane through automatic and explicit opens', async t => {
+  const { controller, panes, calls } = await setup(t);
+  await controller.receive(payload());
+  const previous = [...panes][0];
+
+  await controller.ensure(false);
+  await controller.ensure(true);
+
+  assert.deepEqual([...panes], [previous]);
+  assert.equal(calls.filter(call => call[0] === 'run').length, 1);
+});
+test('a stale receipt cannot identify an unrelated living process as the viewer', async t => {
+  const { controller, panes } = await setup(t);
+  await controller.receive(payload());
+  const previous = [...panes][0];
+  await writeJson(`${controller.stateFile}.viewer.json`, { pid: process.pid, paneId: previous });
+
+  const restored = await controller.ensure(false);
+
+  assert.notEqual(restored, previous);
+  assert.deepEqual([...panes], [restored]);
+});
+test('startup timeout leaves the pane unready and explicit retry creates only one viewer', { timeout: 5000 }, async t => {
+  const { options, panes, controllers } = await setup(t);
+  const launched = new EventEmitter();
+  let first = true;
+  const controller = new DagPane({ ...options, herdr: async (...args) => {
+    if (args[0] === 'run' && first) { first = false; launched.emit('run'); return {}; }
+    return options.herdr(...args);
+  } });
+  controllers.add(controller);
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const started = once(launched, 'run');
+  const rejected = assert.rejects(controller.open(), /viewer did not start/);
+  await started;
+
+  t.mock.timers.tick(10000);
+  await rejected;
+  assert.equal((await readJson(controller.recordFile)).ready, false);
+  t.mock.timers.reset();
+  await controller.open();
+
+  assert.equal((await readJson(controller.recordFile)).ready, true);
+  assert.equal(panes.size, 1);
 });
 test('different sessions cannot affect each other and empty DAG lists do not split', async t => {
   const { calls, controller, options } = await setup(t);

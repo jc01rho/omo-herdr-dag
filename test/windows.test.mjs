@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 import { DagPane } from '../src/controller.mjs';
+import { openViewerHealth } from '../src/viewer-health.mjs';
 
 for (const suffix of ['plain space ', "owner's space "]) {
   test(`controller invokes viewer with literal ${suffix} paths in the host shell`, async t => {
@@ -16,6 +17,8 @@ for (const suffix of ['plain space ', "owner's space "]) {
     await writeFile(viewer, 'console.log(JSON.stringify(process.argv.slice(2)));');
     const paneId = 'test:p2';
     let output;
+    let health;
+    t.after(async () => { await health?.close(); });
     const pane = new DagPane({ sessionId: 'test', parentPane: 'test:p1', socket: 'test',
       stateDir: directory, cwd: directory, node: process.execPath, viewer,
       herdr: async (action, ...args) => {
@@ -26,6 +29,7 @@ for (const suffix of ['plain space ', "owner's space "]) {
             ? execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-EncodedCommand',
               Buffer.from(args[1], 'utf16le').toString('base64')], { encoding: 'utf8', timeout: 10000 })
             : execFileSync('/bin/sh', ['-c', args[1]], { encoding: 'utf8', timeout: 10000 });
+          health = await openViewerHealth(pane.stateFile, paneId);
         }
         return {};
       } });

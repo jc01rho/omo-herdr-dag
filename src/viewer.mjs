@@ -5,10 +5,13 @@ import { createHerdr } from './herdr.mjs';
 import { t } from './i18n.mjs';
 import { renderFrame, runningTarget, standaloneTasks } from './render.mjs';
 import { readJson } from './storage.mjs';
+import { openViewerHealth } from './viewer-health.mjs';
 import { TASK_SCOPE, emptyViewState, isExpanded, loadViewState, saveViewState, setExpanded } from './view-state.mjs';
 
 const file = process.argv[process.argv.indexOf('--state') + 1];
 if (!process.argv.includes('--state') || !file) throw new Error('Usage: node viewer.mjs --state PATH');
+const ownerPane = process.argv.includes('--close-pane') ? process.argv[process.argv.indexOf('--close-pane') + 1] : undefined;
+let health;
 let state = await readJson(file);
 let selectedId = state?.runs?.[0]?.id;
 let view = state?.runs?.length ? 'dag' : 'tasks', selectedTaskId;
@@ -96,6 +99,7 @@ async function close(closePane = false) {
   closing = true;
   clearTimeout(timer); clearInterval(clock); watcher.close(); process.stdout.off('resize', resize);
   await saving;
+  await health?.close();
   process.stdin.setRawMode(false);
   process.stdout.write('\x1b[?25h\x1b[?1049l');
   if (viewError) process.stderr.write(`${t(state?.language, 'viewError', { error: viewError })}\n`);
@@ -173,5 +177,6 @@ process.stdin.on('keypress', (text, pressed) => {
 });
 process.on('SIGTERM', () => { void close(); }); process.on('SIGINT', () => { void close(); }); process.on('SIGHUP', () => { void close(); });
 draw();
+if (ownerPane) health = await openViewerHealth(file, ownerPane);
 // Recover a replacement that raced with watcher registration.
 void refresh();

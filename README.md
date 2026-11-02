@@ -126,7 +126,7 @@ On startup, the extension also restores the current session's saved DAG checkpoi
 
 Borders, titles, and status marks use execution state, not selection: running is cyan, completed green, failed/error red, and paused/blocked yellow. Automatic follow defaults to ON and keeps the same running target until it finishes, then follows the next running node or ordinary task. It reveals DAG boxes in the graph rather than jumping to their detail cards, and switches views or runs when needed. Parallel arrivals and streamed text do not cycle between targets.
 
-Scrolling, selection, run/view switches, folding, and full-detail inspection suspend follow so updates do not interrupt your inspection. The footer shows localized follow ON/OFF with `f`; disconnected snapshots show OFF and do not display live model activity. Follow is temporary viewer state and does not alter saved fold preferences.
+Only `f` pauses or resumes follow. Scrolling, selection, run/view switches, folding, and full-detail inspection keep it enabled; press `f` first to inspect older work without automatic tracking. The footer shows localized follow ON/OFF with `f`; disconnected snapshots show OFF and do not display live model activity. Follow is temporary viewer state and does not alter saved fold preferences.
 
 DAG detail cards show the graph's node label in their top border, even when folded, without adding a row. Long labels are clipped to the pane width; `d` shows the full label and node ID.
 
@@ -204,7 +204,8 @@ No. Run `omo` or `omob` directly in a normal Herdr terminal pane. The extension 
 | No pane opens automatically | The extension opens for workflow DAGs or current-session OmO tasks. Generic `parallel()` calls without OmO task records are not tasks. Check the OmO version and custom task-store path; manually closed panes require `/dag-pane`. |
 | A pane was closed and stays closed | This is intentional. Run `/dag-pane` to reopen it. |
 | `omob` reports `Unknown options: --state, --close-pane` | Update this extension, close the failed DAG pane, run `/reload` in OmO, then `/dag-pane`. The old launcher mistook the compiled OmO binary for Node. |
-| A `DAG pane:` warning appears | Confirm `herdr` is on `PATH` and supports `pane split`, `get`, `rename`, and `run`. A failed or uncertain launch suppresses automatic retries to avoid duplicate panes. Inspect and close any incomplete viewer pane before retrying. |
+| A `DAG pane:` warning appears | Confirm `herdr` is on `PATH` and supports `pane split`, `get`, `rename`, and `run`. Startup must be confirmed within ten seconds. A failed or uncertain launch suppresses automatic retries to avoid duplicate panes; `/dag-pane` replaces the incomplete pane and retries. |
+| A restored DAG pane contains only a shell | The next update replaces a surviving pane whose viewer no longer answers. `/dag-pane` also checks it immediately. A manually closed pane stays closed until `/dag-pane`. |
 | An edge is hard to follow | Inspect the incoming IDs inside each node and the complete edge list below the graph. Scroll if necessary. |
 
 ## How it works
@@ -222,6 +223,8 @@ Startup recovery: current-session DAG checkpoints
 Ordinary subtasks appear in a separate task list rather than as fabricated dependency nodes. Tasks already linked to any displayed DAG are excluded from that list; their children remain under the owning task. Only current-session tasks and their explicitly linked descendants are collected.
 
 The bridge listens to the installed Senpi event bus. It uses `herdr pane split --ratio 0.65 --no-focus`, `rename`, and `run` to create the viewer. Herdr's ratio refers to the original pane, leaving approximately 35% for the new pane.
+
+Each viewer records a startup token and a loopback-only port in `<snapshot path>.viewer.json`. The controller checks the live response before reusing a pane, so an unrelated process reusing the saved PID is not mistaken for the viewer. The listener closes with the viewer; no dependencies or configuration are required.
 
 This integration depends on OmO/Senpi internal event contracts, which may change between versions. It reads explicit workflow edges; it does not infer dependencies between unrelated tasks. Wide frontiers wrap, and dependencies that skip a frontier are represented by incoming IDs and the edge list. Long labels and errors are clipped to the terminal width.
 

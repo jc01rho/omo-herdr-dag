@@ -94,7 +94,7 @@ test('start() prunes expired snapshots but always spares the current session', a
   const currentKey = viewKey(options.socket, options.parentPane, sessionId);
   const oldKey = 'aaaaaaaaaaaaaaaaaaaaaaaa';
   for (const name of [`${oldKey}.json`, `${oldKey}.pane.json`, `${oldKey}.json.view.json`,
-    `${currentKey}.json`, `${currentKey}.pane.json`]) {
+    `${currentKey}.json`, `${currentKey}.pane.json`, `${currentKey}.json.viewer.json`]) {
     const path = join(stateDir, name);
     await writeFile(path, '{}');
     if (name.startsWith(oldKey)) await age(path, 30);
@@ -102,11 +102,12 @@ test('start() prunes expired snapshots but always spares the current session', a
   // Even a long-lived session's stale pane record survives; pruning it would
   // tear down and reopen the pane on the next background event.
   await age(join(stateDir, `${currentKey}.pane.json`), 30);
+  await age(join(stateDir, `${currentKey}.json.viewer.json`), 30);
   const controller = new DagPane(options);
   await controller.start();
   await controller.stop();
   const remaining = (await fs.readdir(stateDir)).sort();
   assert.deepEqual(remaining,
-    [`${currentKey}.json`, `${currentKey}.pane.json`].sort());
+    [`${currentKey}.json`, `${currentKey}.pane.json`, `${currentKey}.json.viewer.json`].sort());
   assert.equal((await fs.readFile(join(stateDir, `${currentKey}.json`), 'utf8')).length > 0, true);
 });

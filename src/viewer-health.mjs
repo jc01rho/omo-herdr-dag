@@ -6,9 +6,7 @@ import { writeJson } from './storage.mjs';
 export async function openViewerHealth(file, paneId) {
   const token = randomUUID();
   const server = createServer(socket => {
-    socket.on('error', error => {
-      if (!['ECONNRESET', 'EPIPE'].includes(error.code)) server.emit('error', error);
-    });
+    socket.on('error', () => socket.destroy());
     socket.end(token);
   });
   const listening = once(server, 'listening');

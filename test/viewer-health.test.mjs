@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { once } from 'node:events';
 import { mkdtemp, rm } from 'node:fs/promises';
-import { createServer } from 'node:net';
+import { createServer, Socket } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -31,6 +31,28 @@ test('a stale receipt for a closed viewer is not rescued by an unrelated living 
   await health.close();
 
   assert.equal(await viewerResponds({ ...receipt, pid: process.pid }, 'test:p1'), false);
+});
+
+test('a failed health response destroys only that connection and the viewer keeps answering', { timeout: 5000 }, async t => {
+  const directory = await mkdtemp(join(tmpdir(), 'viewer-response-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const file = join(directory, 'state.json');
+  const health = await openViewerHealth(file, 'test:p1');
+  t.after(() => health.close());
+  const receipt = await readJson(`${file}.viewer.json`);
+  const end = Socket.prototype.end;
+  const fault = t.mock.method(Socket.prototype, 'end', function (...args) {
+    if (args[0] === receipt.token) {
+      this.emit('error', Object.assign(new Error('Probe connection aborted'), { code: 'ECONNABORTED' }));
+      return this;
+    }
+    return end.apply(this, args);
+  });
+
+  assert.equal(await viewerResponds(receipt, 'test:p1'), false);
+  fault.mock.restore();
+
+  assert.equal(await viewerResponds(receipt, 'test:p1'), true);
 });
 
 test('a nonresponsive process at a reused port cannot keep a health probe open', { timeout: 5000 }, async t => {

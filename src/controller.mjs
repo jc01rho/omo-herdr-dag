@@ -201,13 +201,14 @@ export class DagPane {
     const record = await readJson(this.recordFile);
     if (record && !force && (!record.paneId || !record.ready)) return record.paneId;
     if (record?.paneId) {
+      if (!force && record.ready && await this.viewerRunning(record.paneId)) return record.paneId;
       try {
         await this.herdr('get', record.paneId);
-        if (record.ready && await this.viewerRunning(record.paneId)) {
-          if (force) await this.closeDagPanes(record.paneId);
+        if (force && record.ready && await this.viewerRunning(record.paneId)) {
+          await this.closeDagPanes(record.paneId);
           return record.paneId;
         }
-        await this.closePane(record.paneId);
+        await this.herdr('close', record.paneId);
       } catch (error) {
         if (!missingPane(error)) throw error;
         // A missing pane was intentionally closed; only an explicit open restores it.

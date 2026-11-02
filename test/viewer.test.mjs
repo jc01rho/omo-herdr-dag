@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { EventEmitter, once } from 'node:events';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -278,9 +278,9 @@ finally:
   os.close(master)
 `;
 
-function openViewer(file, t) {
+function openViewer(file, t, args = []) {
   const events = new EventEmitter();
-  const viewerArgs = [fileURLToPath(new URL('../src/viewer.mjs', import.meta.url)), '--state', file];
+  const viewerArgs = [fileURLToPath(new URL('../src/viewer.mjs', import.meta.url)), '--state', file, ...args];
   const child = process.platform === 'win32'
     ? spawn(process.execPath, [fileURLToPath(new URL('./windows-pty.mjs', import.meta.url)), ...viewerArgs], { stdio: ['pipe', 'pipe', 'pipe'] })
     : spawn('python3', ['-u', '-c', bridge, process.execPath, ...viewerArgs], { stdio: ['pipe', 'pipe', 'pipe'] });
@@ -303,7 +303,7 @@ function openViewer(file, t) {
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => finish(new Error(`PTY frame timeout\n${lastFrame}\n${stderr}`)), 5000);
       const onFrame = text => { if (predicate(text)) finish(null, text); };
-      const onExit = code => finish(new Error(`Viewer exited ${code}: ${stderr}\n${lastFrame}`));
+      const onExit = code => finish(Object.assign(new Error(`Viewer exited ${code}: ${stderr}\n${lastFrame}`), { code }));
       function finish(error, text) {
         clearTimeout(timer); events.off('frame', onFrame); child.off('exit', onExit);
         if (error) reject(error); else resolve(text);
@@ -318,6 +318,17 @@ function openViewer(file, t) {
     assert.equal((await exited)[0], 0, stderr);
   } };
 }
+
+test('a startup receipt write failure exits before entering the viewer screen', { timeout: 10000 }, async t => {
+  const dir = await mkdtemp(join(tmpdir(), 'receipt-pty-'));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  const file = join(dir, 'state.json');
+  await writeJson(file, { sessionId: 'receipt-error', connected: true, runs: [], tasks: [] });
+  await mkdir(`${file}.viewer.json`);
+  const viewer = openViewer(file, t, ['--close-pane', 'test:p1']);
+
+  await assert.rejects(viewer.frame(() => true), error => error.code === 1);
+});
 
 test('real viewer PTY selects, toggles, refreshes, switches runs and persists across restart', { timeout: 25000 }, async t => {
   const dir = await mkdtemp(join(tmpdir(), 'dag-pty-'));

@@ -77,6 +77,7 @@ async function refresh() {
   if (again) { again = false; void refresh(); }
 }
 if (process.argv.includes('--once') || !interactive) { draw(); process.exit(0); }
+if (ownerPane) health = await openViewerHealth(file, ownerPane);
 process.stdout.write('\x1b[?1049h\x1b[?25l\x1b]0;OmO DAG\x07');
 process.stdin.setRawMode(true);
 process.stdin.resume();
@@ -99,7 +100,6 @@ async function close(closePane = false) {
   closing = true;
   clearTimeout(timer); clearInterval(clock); watcher.close(); process.stdout.off('resize', resize);
   await saving;
-  await health?.close();
   process.stdin.setRawMode(false);
   process.stdout.write('\x1b[?25h\x1b[?1049l');
   if (viewError) process.stderr.write(`${t(state?.language, 'viewError', { error: viewError })}\n`);
@@ -108,6 +108,7 @@ async function close(closePane = false) {
     try { await createHerdr()('close', pane); }
     catch (error) { process.stderr.write(`${t(state?.language, 'closeFailed', { error: error.message })}\n`); }
   }
+  await health?.close();
   process.exit(0);
 }
 process.stdin.on('keypress', (text, pressed) => {
@@ -177,6 +178,5 @@ process.stdin.on('keypress', (text, pressed) => {
 });
 process.on('SIGTERM', () => { void close(); }); process.on('SIGINT', () => { void close(); }); process.on('SIGHUP', () => { void close(); });
 draw();
-if (ownerPane) health = await openViewerHealth(file, ownerPane);
 // Recover a replacement that raced with watcher registration.
 void refresh();

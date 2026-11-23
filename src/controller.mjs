@@ -3,7 +3,6 @@ import { readdir } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 import { readJson, writeJson } from './storage.mjs';
 import { pruneExpiredSnapshots, retentionDaysFromEnv } from './retention.mjs';
-import { shellCommand } from './herdr.mjs';
 import { normalizeRun, sessionRuns } from './model.mjs';
 import { t, languageOf } from './i18n.mjs';
 import { TaskData } from './task-data.mjs';
@@ -212,13 +211,20 @@ export class DagPane {
     // Record an attempt before mutation: a timeout must not create repeated orphan panes.
     await writeJson(this.recordFile, { attempted: true });
     await this.closeDagPanes();
-    const result = await this.herdr('split', '--pane', this.parentPane, '--direction', 'right',
-      '--ratio', '0.65', '--cwd', this.cwd, '--no-focus');
+    // One `open`: split the parent pane and start the viewer, without taking focus.
+    // The viewer learns its own pane through its terminal address (--close-pane on the
+    // `herdr` CLI, $HC_TERMINAL_ID on the Herdr desktop app), which is why the split
+    // and the launch are the adapter's job rather than two separate commands here.
+    const result = await this.herdr('open', {
+      pane: this.parentPane,
+      direction: 'right',
+      ratio: 0.65,
+      cwd: this.cwd,
+      title: dagTitle(this.sessionId),
+      argv: [this.node, this.viewer, '--state', this.stateFile],
+    });
     const paneId = result?.pane?.pane_id;
     if (!paneId) throw new Error(t(this.language, 'missingPaneId'));
-    await writeJson(this.recordFile, { paneId, ready: false });
-    await this.herdr('rename', paneId, dagTitle(this.sessionId));
-    await this.herdr('run', paneId, shellCommand([this.node, this.viewer, '--state', this.stateFile, '--close-pane', paneId]));
     await writeJson(this.recordFile, { paneId, ready: true });
     return paneId;
   }

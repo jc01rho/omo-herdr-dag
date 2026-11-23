@@ -34,7 +34,8 @@ export default function extension(pi) {
     // In-process child agents inherit the parent pane environment, but do not own its UI.
     if (/[/\\]senpi-task[/\\]children[/\\]/.test(ctx.sessionManager.getSessionFile?.() ?? '')) return;
     controller = new DagPane({ sessionId: ctx.sessionManager.getSessionId(),
-      parentPane: process.env.HERDR_PANE_ID, socket: process.env.HERDR_SOCKET_PATH,
+      parentPane: process.env.HERDR_PANE_ID ?? process.env.HC_TERMINAL_ID,
+      socket: process.env.HERDR_SOCKET_PATH ?? process.env.HC_TERMINAL_SOCKET,
       stateDir, cwd: pi.cwd, node: () => resolveViewerNode({ language }), viewer, herdr: createHerdr(), language,
       taskStateDir: process.env.OMO_HERDR_DAG_TASK_STATE_DIR,
       notify: message => ctx.ui.notify(message, 'warning') });

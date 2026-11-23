@@ -33,12 +33,14 @@ https://github.com/user-attachments/assets/cd918f5f-3b89-43c8-9d75-34fddadb2760
 | --- | --- |
 | Node.js | 24 或更高版本。已在 24.14.0 和 26.7.0 上测试。 |
 | OmO | 暴露 `omo.dag.updated` 事件的版本。已在 `5.0.0-0.beta.42` 和 Senpi `2026.9.4-3` 上验证。 |
-| Herdr | 已安装并在运行，且 `herdr` 可在 `PATH` 上找到；必须支持下文描述的 pane 命令。已针对 protocol 20 做集成测试。 |
+| Herdr | 已安装并在运行。使用 `PATH` 上的 `herdr` CLI（protocol 20+），或 Herdr 桌面应用；在桌面应用中，扩展无需 `herdr` 二进制即可直接驱动 `herdr-app` 和 `hc`。 |
 | 终端 | 在 Herdr pane 中运行 OmO，使用 UTF-8 终端和支持制表符（box-drawing）的字体。 |
 
 **此扩展不要求在 Herdr 中注册自定义 OmO agent。** 打开一个普通的 Herdr 终端 pane 并自行运行 `omo` 即可。扩展使用 pane ID 和普通的 `herdr pane` 命令；不调用 `herdr agent start`，也不依赖侧边栏的 agent 识别。
 
 该架构支持上述方式，且已在原生 macOS 上、于全新且未修改的 Herdr 安装中完成端到端验证；更早之前在 Windows PowerShell 上验证过 viewer 启动与真实渲染。具体的验证覆盖范围和仍未覆盖的部分见[验证与兼容性](VERIFICATION.md)。Windows pane 应使用 PowerShell，而不是 cmd.exe 或 Git Bash。
+
+**Herdr 桌面应用（`herdr-app` + `hc`）。** 当 OmO 在由 Herdr 桌面应用启动的终端中运行时，herdr-core 会导出 `HC_TERMINAL_ID` 和 `HC_TERMINAL_SOCKET`。扩展会检测它们，并通过 `herdr-app`（使用 `hc` 检查终端）而不是 `herdr` CLI 来驱动窗口：`herdr-app do pane.split` 会带着 viewer 的 argv 启动它，焦点会回到你的 pane，viewer 则通过自己的 `HC_TERMINAL_ID` 关闭它自己的 pane。如果 `herdr-app` 不在 `PATH` 上，也不在 `/Applications/Herdr.app/Contents/MacOS/Herdr`，请设置 `HERDR_APP_BIN`。无需 `herdr` 二进制。
 
 ## 安装
 

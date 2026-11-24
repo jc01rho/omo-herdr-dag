@@ -99,10 +99,14 @@ async function close(closePane = false) {
   process.stdin.setRawMode(false);
   process.stdout.write('\x1b[?25h\x1b[?1049l');
   if (viewError) process.stderr.write(`${t(state?.language, 'viewError', { error: viewError })}\n`);
-  if (closePane && process.argv.includes('--close-pane')) {
-    const pane = process.argv[process.argv.indexOf('--close-pane') + 1];
-    try { await createHerdr()('close', pane); }
-    catch (error) { process.stderr.write(`${t(state?.language, 'closeFailed', { error: error.message })}\n`); }
+  if (closePane) {
+    const pane = (process.argv.includes('--close-pane')
+      ? process.argv[process.argv.indexOf('--close-pane') + 1]
+      : undefined) ?? process.env.HC_TERMINAL_ID;
+    if (pane) {
+      try { await createHerdr()('close', pane); }
+      catch (error) { process.stderr.write(`${t(state?.language, 'closeFailed', { error: error.message })}\n`); }
+    }
   }
   process.exit(0);
 }

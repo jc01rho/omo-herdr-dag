@@ -33,12 +33,14 @@ https://github.com/user-attachments/assets/cd918f5f-3b89-43c8-9d75-34fddadb2760
 | --- | --- |
 | Node.js | 24 이상. 24.14.0과 26.7.0에서 검증했습니다. |
 | OmO | `omo.dag.updated` 이벤트를 제공하는 버전. `5.0.0-0.beta.42` 및 Senpi `2026.9.4-3`에서 확인했습니다. |
-| Herdr | 설치·실행되어 있고 `PATH`에서 `herdr`를 찾을 수 있어야 합니다. 아래 pane 명령을 지원해야 하며 protocol 20 환경에서 연동을 검증했습니다. |
+| Herdr | 설치·실행되어 있어야 합니다. `PATH`의 `herdr` CLI(protocol 20 이상) 또는 Herdr 데스크톱 앱 중 하나를 사용하며, 데스크톱 앱에서는 `herdr` 바이너리 없이 확장이 `herdr-app`과 `hc`를 직접 제어합니다. |
 | 터미널 | Herdr pane 안에서 OmO를 실행해야 합니다. UTF-8과 테두리 문자를 지원하는 폰트를 사용하세요. |
 
 **이 확장은 Herdr에 OmO를 커스텀 에이전트로 등록할 필요가 없습니다.** Herdr의 일반 터미널 pane에서 `omo`를 직접 실행하면 됩니다. 확장은 pane ID와 일반 `herdr pane` 명령을 사용하며, `herdr agent start`나 사이드바의 에이전트 인식에 의존하지 않습니다.
 
 구조상 이 방식으로 사용할 수 있으며, 커스텀 설정이 없는 순정 Herdr 설치에서 네이티브 macOS 기준으로 전체 동작을 검증했습니다. Windows PowerShell에서는 viewer 실행과 실제 렌더링을 앞서 검증했습니다. 정확한 확인 범위와 남은 제한은 [검증 및 호환성 기록](VERIFICATION.md)을 참고하세요. Windows pane의 셸은 cmd.exe나 Git Bash가 아닌 PowerShell을 전제로 합니다.
+
+**Herdr 데스크톱 앱(`herdr-app` + `hc`).** Herdr 데스크톱 앱이 시작한 터미널에서 OmO를 실행하면 herdr-core가 `HC_TERMINAL_ID`와 `HC_TERMINAL_SOCKET`을 내보냅니다. 확장은 이를 감지하고 `herdr` CLI 대신 `herdr-app`(터미널 조회에는 `hc`)으로 창을 제어합니다. `herdr-app do pane.split`이 viewer를 argv와 함께 실행하고 포커스는 원래 pane으로 돌아오며, viewer는 자신의 `HC_TERMINAL_ID`를 통해 스스로 pane을 닫습니다. `herdr-app`이 `PATH`에도, `/Applications/Herdr.app/Contents/MacOS/Herdr`에도 없다면 `HERDR_APP_BIN`을 설정하세요. `herdr` 바이너리는 필요하지 않습니다.
 
 ## 설치
 

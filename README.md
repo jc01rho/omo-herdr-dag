@@ -33,12 +33,14 @@ The screenshots show the **English** interface, which is the default for new ins
 | --- | --- |
 | Node.js | 24 or later. Tested with 24.14.0 and 26.7.0. |
 | OmO | A version exposing the `omo.dag.updated` event. Verified with `5.0.0-0.beta.42` and Senpi `2026.9.4-3`. |
-| Herdr | Installed, running, and available as `herdr` on `PATH`; must support the pane commands described below. Integration tested against protocol 20. |
+| Herdr | Installed and running. Either the `herdr` CLI on `PATH` (protocol 20+), or the Herdr desktop app, where the extension drives `herdr-app` and `hc` directly (no `herdr` binary needed). |
 | Terminal | Run OmO inside a Herdr pane, with a UTF-8 terminal and font that supports box-drawing characters. |
 
 **Custom OmO agent registration in Herdr is not required by this extension.** Open a normal Herdr terminal pane and run `omo` yourself. The extension uses pane IDs and ordinary `herdr pane` commands; it does not call `herdr agent start` or depend on sidebar agent recognition.
 
 The architecture supports that setup, and it has since been verified end to end on a clean, unmodified Herdr installation on native macOS; live pane creation and rendering were verified earlier on Windows PowerShell. See [verification and compatibility](VERIFICATION.md) for the exact coverage and the remaining limits. Windows panes are expected to use PowerShell, not cmd.exe or Git Bash.
+
+**Herdr desktop app (`herdr-app` + `hc`).** When OmO runs in a terminal started by the Herdr desktop app, herdr-core exports `HC_TERMINAL_ID` and `HC_TERMINAL_SOCKET`. The extension detects them and drives the window through `herdr-app` (with `hc` to inspect terminals) instead of the `herdr` CLI: `herdr-app do pane.split` starts the viewer with its argv, focus returns to your pane, and the viewer closes its own pane through its own `HC_TERMINAL_ID`. Set `HERDR_APP_BIN` if `herdr-app` is not on `PATH` and not at `/Applications/Herdr.app/Contents/MacOS/Herdr`. No `herdr` binary is required.
 
 ## Install
 

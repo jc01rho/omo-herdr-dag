@@ -20,7 +20,7 @@ async function setup(t) {
   let number = 0;
   const herdr = async (...args) => {
     calls.push(args);
-    if (args[0] === 'split') { const pane_id = `test:p${++number}`; panes.add(pane_id); return { pane: { pane_id } }; }
+    if (args[0] === 'open') { const pane_id = `test:p${++number}`; panes.add(pane_id); return { pane: { pane_id } }; }
     if (args[0] === 'get' && !panes.has(args[1])) throw new Error('pane_not_found');
     if (args[0] === 'list') return { panes: [
       { pane_id: options.parentPane, tab_id: 'tab0', label: 'OmO' },
@@ -71,7 +71,7 @@ for (const action of ['start', 'open']) for (const custom of [false, true]) {
     const state = await readJson(controller.stateFile);
     assert.deepEqual(state.runs, [normalizeRun(checkpoint)]);
     assert.deepEqual(state.tasks.map(task => task.id).sort(), checkpoint.nodes.map(node => node.taskId).sort());
-    assert.equal(calls.filter(call => call[0] === 'split').length, 1);
+    assert.equal(calls.filter(call => call[0] === 'open').length, 1);
   });
 }
 
@@ -102,7 +102,7 @@ test('model activity coalesces into snapshot rewrites, keeps phase start times, 
   await controller.receiveStream({ taskId: 'st_root', active: false });
   const settled = await readJson(controller.stateFile);
   assert.deepEqual(settled.tasks.find(task => task.id === 'st_root'), base.tasks[0]);
-  assert.equal(calls.filter(call => call[0] === 'split').length, 1);
+  assert.equal(calls.filter(call => call[0] === 'open').length, 1);
   // Terminal tasks never carry activity, even from a late event.
   await controller.receiveTasks({ parent_session_id: sessionId, tasks: [{ task_id: 'st_root', status: 'completed' }] });
   await controller.receiveStream({ taskId: 'st_root', active: true, phase: 'text', text: 'AFTER_TERMINAL', now: 5000 });
@@ -189,7 +189,7 @@ for (const trigger of ['start', 'rpc', 'disk']) {
     let state = await readJson(controller.stateFile);
     assert.deepEqual(state.runs, []);
     assert.deepEqual(state.tasks.map(task => task.id), ['st_standalone']);
-    assert.equal(calls.filter(call => call[0] === 'split').length, 1);
+    assert.equal(calls.filter(call => call[0] === 'open').length, 1);
     panes.clear();
     const completed = { ...record, status: 'completed' };
     if (trigger === 'disk') {
@@ -199,9 +199,9 @@ for (const trigger of ['start', 'rpc', 'disk']) {
     } else await controller.receiveTasks({ parent_session_id: sessionId, tasks: [completed] });
     state = await readJson(controller.stateFile);
     assert.equal(state.tasks[0].status, 'completed');
-    assert.equal(calls.filter(call => call[0] === 'split').length, 1);
+    assert.equal(calls.filter(call => call[0] === 'open').length, 1);
     await controller.open();
-    assert.equal(calls.filter(call => call[0] === 'split').length, 2);
+    assert.equal(calls.filter(call => call[0] === 'open').length, 2);
   });
 }
 
@@ -216,14 +216,15 @@ test('empty startup and foreign task events never create a pane', async t => {
 });
 
 test('a burst of events creates one pane, preserves focus, updates the same state file', async t => {
-  const { calls, controller } = await setup(t);
+  const { calls, controller, options } = await setup(t);
   await Promise.all(Array.from({ length: 12 }, () => controller.receive(payload())));
-  const split = calls.find(c => c[0] === 'split');
-  assert.equal(calls.filter(c => c[0] === 'split').length, 1);
-  assert.ok(split.includes('--no-focus'));
-  assert.ok(split.includes('right'));
-  assert.equal(split[split.indexOf('--ratio') + 1], '0.65');
-  assert.equal(calls.filter(c => c[0] === 'run').length, 1);
+  const open = calls.find(c => c[0] === 'open');
+  assert.equal(calls.filter(c => c[0] === 'open').length, 1);
+  assert.equal(open[1].direction, 'right');
+  assert.equal(open[1].pane, options.parentPane);
+  assert.equal(open[1].ratio, 0.65);
+  assert.ok(open[1].argv.some(value => value.endsWith('viewer.mjs')));
+  assert.ok(open[1].argv.some(value => value.endsWith('node')));
   const next = payload(); next.runs[0].nodes.forEach(n => { n.state = 'completed'; }); next.runs[0].status = 'completed';
   await controller.receive(next);
   assert.equal((await readJson(controller.stateFile)).runs[0].status, 'completed');
@@ -238,9 +239,9 @@ test('reload reuses the pane and manual closure is respected until explicit reop
   await next.receive(payload());
   panes.clear();
   await next.receive(payload());
-  assert.equal(calls.filter(c => c[0] === 'split').length, 1);
+  assert.equal(calls.filter(c => c[0] === 'open').length, 1);
   await next.open();
-  assert.equal(calls.filter(c => c[0] === 'split').length, 2);
+  assert.equal(calls.filter(c => c[0] === 'open').length, 2);
 });
 test('different sessions cannot affect each other and empty DAG lists do not split', async t => {
   const { calls, controller, options } = await setup(t);
@@ -263,13 +264,13 @@ test('opening closes leftover DAG panes and reuses a live recorded pane', async 
   const { calls, panes, controller } = await setup(t);
   panes.add('test:stale');
   await controller.receive(payload());
-  assert.equal(calls.filter(call => call[0] === 'split').length, 1);
+  assert.equal(calls.filter(call => call[0] === 'open').length, 1);
   assert.ok(calls.some(call => call[0] === 'close' && call[1] === 'test:stale'));
   assert.equal(panes.has('test:stale'), false);
   const live = [...panes][0];
   panes.add('test:duplicate');
   await controller.open();
-  assert.equal(calls.filter(call => call[0] === 'split').length, 1);
+  assert.equal(calls.filter(call => call[0] === 'open').length, 1);
   assert.ok(calls.some(call => call[0] === 'close' && call[1] === 'test:duplicate'));
   assert.equal(panes.has(live), true);
   assert.equal(panes.has('test:duplicate'), false);
@@ -299,10 +300,13 @@ test('runtime failure creates no pane or attempt record and can be retried', asy
   assert.equal(await readJson(controller.recordFile), null);
   available = true;
   await controller.open();
-  assert.match(calls.find(c => c[0] === 'run')[2], /^(?:& )?'\/opt\/Node Runtime\/node' '\/tmp\/viewer.mjs' '--state'/);
+  const open = calls.find(c => c[0] === 'open');
+  assert.equal(open[1].argv[0], '/opt/Node Runtime/node');
+  assert.equal(open[1].argv[1], '/tmp/viewer.mjs');
+  assert.equal(open[1].argv[2], '--state');
   await controller.open();
   assert.equal(probes, 2);
-  assert.equal(calls.filter(c => c[0] === 'split').length, 1);
+  assert.equal(calls.filter(c => c[0] === 'open').length, 1);
 });
 
 test('task-only events update snapshots; reload restores completed details without another DAG event', async t => {
@@ -332,7 +336,7 @@ test('task-only events update snapshots; reload restores completed details witho
   assert.equal(snapshot.tasks[0].toolCalls, 7);
   assert.equal(snapshot.tasks[0].completedAt, '2026-09-06T00:02:00.000Z');
   assert.ok(!JSON.stringify(snapshot).includes('PRIVATE OUTPUT'));
-  assert.equal(calls.filter(call => call[0] === 'split').length, 1);
+  assert.equal(calls.filter(call => call[0] === 'open').length, 1);
   await controller.stop();
   const disconnected = await readJson(controller.stateFile);
   await controller.receiveTasks({ parent_session_id: sessionId, tasks: [{ task_id: 'st_root',

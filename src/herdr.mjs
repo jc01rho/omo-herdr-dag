@@ -81,9 +81,10 @@ export function herdrSession(env = process.env) {
   return Boolean(resolveHerdrBin(env));
 }
 
-export function createHerdr(env = process.env) {
-  if (isAppSession(env)) return createHerdrApp(env);
-  const call = createLegacyCall(env);
+export function createHerdr(env = process.env, deps = {}) {
+  const exec = deps.execute ?? execute;
+  if (isAppSession(env)) return createHerdrApp(env, exec);
+  const call = createLegacyCall(env, exec);
   return async (...args) => {
     const [verb, ...rest] = args;
     if (verb === 'open') return legacyOpen(call, rest[0]);
@@ -91,11 +92,11 @@ export function createHerdr(env = process.env) {
   };
 }
 
-function createLegacyCall(env) {
+function createLegacyCall(env, exec = execute) {
   return async (...args) => {
     const bin = resolveHerdrBin(env);
     if (!bin) throw new Error('Herdr is not available in this session');
-    const { stdout } = await execute(bin, ['pane', ...args], { env, timeout: 10000, maxBuffer: 2 * 1024 * 1024 });
+    const { stdout } = await exec(bin, ['pane', ...args], { env, timeout: 10000, maxBuffer: 2 * 1024 * 1024 });
     // pane run acknowledges success with an empty body in Herdr protocol 20.
     if (!stdout.trim()) return {};
     const reply = JSON.parse(stdout);
@@ -115,14 +116,22 @@ async function legacyOpen(call, spec = {}) {
   const result = await call(...splitArgs);
   const paneId = result?.pane?.pane_id;
   if (!paneId) throw new Error('Herdr did not report a new pane id');
-  if (spec.title) await call('rename', paneId, spec.title);
+  if (spec.title) {
+    try { await call('rename', paneId, spec.title); }
+    catch (error) {
+      // A retry cannot find an unnamed pane by label, so close the pane we just split
+      // rather than strand it beside the viewer a retry will open.
+      try { await call('close', paneId); } catch { /* the pane may already be gone */ }
+      throw error;
+    }
+  }
   const argv = [...(spec.argv ?? []), '--close-pane', paneId];
   await call('run', paneId, shellCommand(argv));
   return { pane: { pane_id: paneId } };
 }
 
 /** Adapter for the Herdr desktop app: `herdr pane …` mapped to `herdr-app do …` + `hc`. */
-export function createHerdrApp(env = process.env) {
+export function createHerdrApp(env = process.env, exec = execute) {
   const appBin = () => resolveAppBin(env);
   const hcBin = () => resolveHcBin(env);
   const names = new Map();     // terminal id -> title we set
@@ -131,7 +140,7 @@ export function createHerdrApp(env = process.env) {
   async function run(bin, argv, timeout = 15000) {
     if (!bin) throw new Error('Herdr is not available in this session');
     try {
-      const { stdout } = await execute(bin, argv, { env, timeout, maxBuffer: 4 * 1024 * 1024 });
+      const { stdout } = await exec(bin, argv, { env, timeout, maxBuffer: 4 * 1024 * 1024 });
       return { stdout: stdout ?? '', stderr: '' };
     } catch (error) {
       const stdout = error.stdout ?? '';
@@ -257,9 +266,14 @@ export function createHerdrApp(env = process.env) {
 
       case 'get': {
         const id = rest[0];
-        const real = await resolveRealPane(id);
-        if (!real) throw new Error(`pane_not_found: ${id}`);
-        return { pane: { pane_id: id, pane: real } };
+        // A cached identity is not evidence that the pane still exists: a pane the person
+        // closed lingers in `paneOf`. Only a pane in the current listing is live, so a
+        // closed viewer reports pane_not_found and the controller reopens it.
+        const rows = await freshRows();
+        const hit = rows.find(row => row.terminal === id || row.pane === id);
+        if (!hit) throw new Error(`pane_not_found: ${id}`);
+        paneOf.set(hit.terminal, hit.pane);
+        return { pane: { pane_id: id, pane: hit.pane } };
       }
 
       case 'close': {

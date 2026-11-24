@@ -17,7 +17,9 @@ export function dagTitle(sessionId) {
 
 export function isDagViewerPane(pane) {
   return [pane?.label, pane?.terminal_title, pane?.terminal_title_stripped]
-    .some(name => typeof name === 'string' && (name.startsWith('DAG · ') || name === 'OmO DAG'));
+    // `DAG ·` (no id) is the marker the adapter recovers from a viewer's argv after a
+    // reload loses the name cache; accept it so such a viewer is still cleaned up.
+    .some(name => typeof name === 'string' && (name.startsWith('DAG ·') || name === 'OmO DAG'));
 }
 
 function missingPane(error) {

@@ -195,6 +195,9 @@ export class DagPane {
     const record = await readJson(this.recordFile);
     // Preserve a manually closed pane across events/reloads. /dag-pane explicitly reopens it.
     if (record && !force) return record.paneId;
+    // An unusable viewer runtime is not re-probed on every event: the failure is
+    // recorded once so event-driven saves stay silent, and /dag-pane re-checks it.
+    if (this.nodeError && !force) return undefined;
     if (record?.paneId) {
       try {
         await this.herdr('get', record.paneId);
@@ -208,7 +211,15 @@ export class DagPane {
         if (!missingPane(error)) throw error;
       }
     }
-    if (typeof this.node === 'function') this.node = await this.node();
+    if (typeof this.node === 'function') {
+      try {
+        this.node = await this.node();
+        this.nodeError = undefined;
+      } catch (error) {
+        this.nodeError = error.message;
+        throw error;
+      }
+    }
     // Record an attempt before mutation: a timeout must not create repeated orphan panes.
     await writeJson(this.recordFile, { attempted: true });
     await this.closeDagPanes();

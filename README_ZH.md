@@ -155,7 +155,7 @@ OmO 会话结束时，最后的图形仍保持可见，并带有断开连接的�
 
 Herdr 会向其 pane 提供 `HERDR_ENV`、`HERDR_PANE_ID` 和 `HERDR_SOCKET_PATH`。扩展还要求该 socket 路径存在，且能找到真实的 `herdr` 可执行文件（`HERDR_BIN_PATH` 为已存在的文件时用它，否则用 `PATH` 上的 `herdr`）。来自上一次 Herdr 会话的残留环境——包括以 `(deleted)` 结尾的 `HERDR_BIN_PATH`——不会激活 viewer。不要手动设置这些变量来定向另一个 pane。
 
-独立构建版本（如 `omob`）仍需要单独的 Node.js 24+ 安装来运行 viewer。扩展在打开 pane 前检查运行时，并解析实际的 Node 可执行文件，包括 `node` 是版本管理器 shim 的情况。它不会通过编译的 OmO 二进制启动 viewer。要显式指定 Node，请以 `OMO_HERDR_DAG_NODE=/absolute/path/to/node omob` 启动。显式路径无效时产生警告，而不是回退到其他运行时。
+独立构建版本（如 `omob`）仍需要单独的 Node.js 24+ 安装来运行 viewer。扩展在打开 pane 前检查运行时，并解析实际的 Node 可执行文件，包括 `node` 是版本管理器 shim 的情况。它不会通过编译的 OmO 二进制启动 viewer。要显式指定 Node，请以 `OMO_HERDR_DAG_NODE=/absolute/path/to/node omob` 启动。显式路径无效时产生警告，而不是回退到其他运行时。运行时缺失或不受支持时，每个会话只警告一次并暂停自动 pane 初始化，后续工作流事件不会再重复该警告；`/dag-pane` 会重新检查运行时，并在受支持的 Node.js 可用后打开 pane。
 
 Snapshot 是本地 JSON 文件，包含会话与运行 ID、名称、节点标签、状态、任务 ID、依赖边和错误消息。workflow 提示词不会写入，但标签和错误仍可能包含项目信息。请勿把运行时文件放进公开的 issue 报告或版本控制。本扩展不添加任何外部网络服务或遥测。
 

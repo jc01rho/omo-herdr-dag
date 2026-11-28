@@ -259,6 +259,31 @@ test('a failed split is reported once; later events do not create orphan panes',
   assert.equal(calls, first); assert.equal(messages.length, 1);
 });
 
+test('an unusable viewer runtime is reported once; /dag-pane re-checks it', async t => {
+  const { calls, panes, options } = await setup(t);
+  const messages = []; let probes = 0, available = false;
+  const controller = new DagPane({ ...options, notify: message => messages.push(message),
+    node: async () => {
+      probes++;
+      if (!available) throw new Error('The DAG viewer requires Node.js 24 or later.');
+      return '/usr/bin/node';
+    } });
+  await controller.start().catch(() => {});
+  await assert.rejects(controller.receive(payload()), /Node\.js 24/);
+  await controller.receive(payload()); await controller.receive(payload());
+  assert.equal(probes, 1);
+  assert.equal(messages.length, 1);
+  assert.equal(calls.length, 0);
+  available = true;
+  await controller.open();
+  assert.equal(probes, 2);
+  assert.equal(messages.length, 1);
+  assert.equal(calls.filter(call => call[0] === 'split').length, 1);
+  assert.equal(panes.size, 1);
+  await controller.receive(payload());
+  assert.equal(probes, 2);
+});
+
 test('opening closes leftover DAG panes and reuses a live recorded pane', async t => {
   const { calls, panes, controller } = await setup(t);
   panes.add('test:stale');
